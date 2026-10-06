@@ -69,6 +69,7 @@ Do not introduce distributed systems merely because they are fashionable. Use as
 | XIII | Disaster Recovery |
 | XIV | Testing Strategy |
 | XV | Production Readiness Checklist |
+| XVI | Commercial Operations |
 
 ## Existing requirements incorporated
 
