@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-10
 
-Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, real-provider evidence, and frontend workflow evidence are not complete. Backend API integration coverage exercises COD checkout, order ownership, a stock conflict, and Razorpay sandbox success, decline/retry, and order retrieval flows.
+Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, and real-provider evidence are not complete. Backend API and React checkout flows have integration and user-level coverage for pre-order GST quotes, stale quote rejection, COD, stock conflicts, Razorpay success, decline/retry, refresh recovery, changed totals, and the Admin payment review queue.
 
 This tracker records implementation evidence against [17-implementation-roadmap.md](17-implementation-roadmap.md). A feature is not marked complete solely because code exists; its acceptance evidence and business decisions must also be complete.
 
@@ -41,17 +41,26 @@ Implemented in the current tree:
 - [x] Reserve stock under inventory row locks; persist signed movement records; expire online reservations through a bounded scheduled job.
 - [x] Use checkout idempotency and serialize duplicate requests by key; reject a reused key with a different request fingerprint.
 - [x] Add Razorpay order creation, verified client confirmation, signed/deduplicated webhooks, amount/currency/reference checks, reconciliation, and idempotent admin refund commands.
+- [x] Persist a signed webhook receipt before applying its business transition; serialize duplicate processing, leave transient failures retryable as `RECEIVED`, and durably record permanent failures with safe provider references and error codes using migration `V17`.
+- [x] Expose a bounded, paginated, Admin-only payment review queue for reconciliation mismatches and failed webhook events; return safe references/error codes without raw webhook payloads. PostgreSQL API integration tests prove Admin access and customer denial.
+- [x] Add migration `V18` to establish inventory movement opening balances; expose a paginated Admin reconciliation API that compares on-hand stock, active reservations, and movement totals without silently repairing differences.
+- [x] Instrument the bounded reservation-expiry job with success/failure counts, expired-reservation count, and duration metrics; unit tests prove failures remain visible to the scheduler.
 - [x] Protect provider-order creation with a database lease and recover an order by its unique receipt after a timeout.
 - [x] Reconcile stale payment setup by receipt; reject provider-order creation when the local payment state is no longer payable.
 - [x] Prevent reservation expiry from releasing stock after a concurrent payment capture; gate full-order consumption and make repeated consumption idempotent.
 - [x] Add React checkout for COD/Razorpay, state selection, pending/review/expired messaging, refresh recovery, and line-level GST display.
+- [x] Add authenticated `POST /api/v1/checkout/quote` backed by the same server pricing calculation as order creation. The quote returns product and delivery GST, totals, and a review hash without creating an order or reservation; order placement requires the hash, recalculates under stock locks, and rejects stale totals before order/reservation writes.
+- [x] Add migration `V19` to persist the checkout cart fingerprint separately from the request fingerprint. Same-key retries can replay the saved order after the server clears the cart, while a changed nonempty cart under the same key is rejected.
 - [x] Add an isolated `demo` Spring profile and separate local database with conspicuously synthetic GST categories/rates for checkout development; the demo migration is excluded from the normal migration path and is not production tax data.
 - [x] Add unit/context coverage for GST cases, checkout idempotency/stock conflict, sandbox provider behavior, payment setup retry/recovery, expiry racing a completed payment, webhook signature/deduplication, and out-of-order capture/failure transitions.
 - [x] Execute the database lease query against the migrated PostgreSQL database in an integration test.
-- [x] Full backend test run on 2026-10-10 passed (36 tests, 0 failures/errors), including application startup and Flyway schema validation for the new shipping-tax snapshot columns.
+- [x] Full backend test run on 2026-10-10 passed (47 tests, 0 failures/errors), including application startup and Flyway validation through `V19`, quote non-mutation, quote-required validation, stale quote rejection, and same-key replay after cart clearing.
 - [x] PostgreSQL integration tests prove two customers competing for the final unit produce one order/reservation; simultaneous same-key checkout replays one order; concurrent payment setup converges on one persisted payment/provider order; webhook replay/out-of-order failure does not regress capture; unpaid reservation expiry releases stock; captured-payment expiry preserves stock for review; and repeated fulfillment consumption changes stock once.
 - [x] MockMvc API integration tests cover COD checkout totals and cart clearing, customer order ownership, stock conflict handling, Razorpay sandbox checkout, signed payment confirmation, pending and captured order retrieval, and failed-attempt retry followed by capture.
-- [x] React production build passed on 2026-10-10 after the shipping-tax breakdown and return-policy copy updates; Sass emits existing mixed-declaration deprecation warnings.
+- [x] PostgreSQL webhook integration tests prove amount/currency mismatches cannot capture funds and put the order into review; a signed unknown-order event remains recorded as failed with its provider reference, and duplicate delivery does not create another event. Admin queue tests verify both issue types are visible to admins and denied to customers.
+- [x] PostgreSQL inventory reconciliation test proves an on-hand/movement mismatch is reported to an Admin and denied to a customer; the normal payment profile test proves the synthetic `DEMO-GST-*` fixtures are absent.
+- [x] React Testing Library/Vitest checkout tests cover quote display/hash submission, COD, Razorpay confirmation, decline/retry without duplicate order placement, refresh recovery with changed server totals, changed-input idempotency, and stock-conflict messaging (6 tests passed on 2026-10-10).
+- [x] React production build passed on 2026-10-10 after the quote flow update; Sass emits existing mixed-declaration deprecation warnings.
 
 Still required before Stage 1 can be called complete:
 
@@ -59,7 +68,7 @@ Still required before Stage 1 can be called complete:
 - [ ] Implement invoice/credit-note document generation and associated tests after seller identity, financial-year numbering, dispatch timing, and sample output are approved. Checkout/order summaries are not tax invoices.
 - [ ] Exercise a real Razorpay Test Mode account end to end, including configured webhook delivery and provider timeout/retry behavior. Test credentials/dashboard access are not available in the repository.
 - [ ] Connect exactly-once reservation consumption to the fulfillment command when Stage 2 fulfillment is implemented.
-- [ ] Add React workflow tests for payment success, decline/retry, refresh recovery, stock conflicts, and changed totals. API-level coverage exists for COD checkout, stock conflicts, signed sandbox payment confirmation, and order retrieval; it does not replace browser-flow coverage.
+- [x] Add API and React flow tests for COD, online success, decline/retry, refresh recovery, stock conflicts, changed totals, and order confirmation. React tests exercise the customer components with mocked API/provider boundaries; real-provider delivery remains a separate gate.
 
 ## Stage 2 — Fulfillment, returns, and admin operations
 
@@ -86,4 +95,4 @@ Status: **Not started**
 - Production hosting, secret management, notification provider, and operational owner are undecided.
 - Privacy/PII retention, deletion requirements, and their accountable owner are not decided.
 - Razorpay test/live credentials and dashboard webhook configuration are not supplied in this repository; no credentials or account/UPI details belong in the application database.
-- Remaining Stage 1 payment/provider/API evidence, Stage 2 operations, and Stage 3 production/DR gates remain outstanding.
+- Real-provider delivery/recovery and finance/tax approval remain Stage 1 gates; Stage 2 operations and Stage 3 production/DR gates also remain outstanding.
