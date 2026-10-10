@@ -120,6 +120,8 @@ Build the reservation workflow around the existing row-level lock and `on_hand -
 
 ## Stage 2 — Fulfillment, returns, refunds, and admin operations
 
+**Current development progress (2026-10-10):** shipment/return APIs, split-package stock consumption, sandbox carrier events, customer tracking, return inspection/refund recovery, role-scoped staff queues, saved addresses, and reconciliation fixtures are implemented. See [STAGE-2-OPERATIONS.md](STAGE-2-OPERATIONS.md) for the contracts and verification matrix. Real-carrier integration, order cancellation/COD recovery, and finance/operations sign-off remain open; Stage 2 is not complete.
+
 **Prerequisite:** Stage 1 order, payment, inventory, tax, and audit records are stable. Any administrative refund uses the Stage 1 refund service; it must not directly edit totals or payment state.
 
 ### 2A. Fulfillment and shipping

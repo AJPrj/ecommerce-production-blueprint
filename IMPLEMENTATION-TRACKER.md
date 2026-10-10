@@ -67,16 +67,28 @@ Still required before Stage 1 can be called complete:
 - [ ] Admin/finance validate representative GST-inclusive outputs; real product classifications and effective-dated tax rates still need approved configuration before production checkout can succeed. The 5%, 12%, 18% rates and HSN/SAC strings in the separate demo DB are synthetic only.
 - [ ] Implement invoice/credit-note document generation and associated tests after seller identity, financial-year numbering, dispatch timing, and sample output are approved. Checkout/order summaries are not tax invoices.
 - [ ] Exercise a real Razorpay Test Mode account end to end, including configured webhook delivery and provider timeout/retry behavior. Test credentials/dashboard access are not available in the repository.
-- [ ] Connect exactly-once reservation consumption to the fulfillment command when Stage 2 fulfillment is implemented.
+- [x] Connect reservation consumption to the Stage 2 dispatch command, with partial quantities and idempotent/concurrent dispatch coverage. Production carrier acceptance remains outstanding.
 - [x] Add API and React flow tests for COD, online success, decline/retry, refresh recovery, stock conflicts, changed totals, and order confirmation. React tests exercise the customer components with mocked API/provider boundaries; real-provider delivery remains a separate gate.
 
 ## Stage 2 — Fulfillment, returns, and admin operations
 
-Status: **Not started**
+Status: **In progress — development workflows implemented; verification and external acceptance tracked below**
 
-- [ ] Shipment/package/carrier models, state transitions, carrier adapter, tracking events, and customer tracking.
-- [ ] Return request, eligibility, inspection/quarantine/restock, and refund workflow.
-- [ ] API-backed fulfillment and returns admin queues, authorization tests, privileged audit, and operational reports.
+Contracts, role matrix, recovery procedures, fixture expectations, and limitations are in [STAGE-2-OPERATIONS.md](STAGE-2-OPERATIONS.md).
+
+- [x] Add shipment packages, line allocations, history, signed/deduplicated carrier events, split shipments and customer tracking. The carrier is a development sandbox; normal-profile label creation fails until a real adapter exists.
+- [x] Consume each dispatched package's reserved units exactly once; retain counters for the order's remaining reservation and reconcile those counters with movements.
+- [x] Add customer return requests with ownership, original order policy snapshots, delivery windows per package, quantity limits and durable idempotency.
+- [x] Add approval/rejection/cancellation, receipt into quarantine, inspection and exactly-once restocking; failed inspection blocks refund.
+- [x] Route approved online return refunds through the Stage 1 service, preserve original order totals, retain refund amount/reason for retries and synchronize confirmed outcomes.
+- [x] Replace the static fulfillment dashboard with API-backed order/return queues and actions; add customer tracking/returns and saved-address screens.
+- [x] Add Fulfillment, Returns, Refunds, Support, Finance and Reporting roles with server authorization and staff login; add privileged audit and transactional outbox records.
+- [x] Add a bounded financial reconciliation report based on durable payment/refund records, including mismatch visibility.
+- [ ] Record final backend/React verification totals after the complete suites pass.
+- [ ] Integrate and prove a real carrier's booking, label printing, reverse pickup, timeouts/retries and exception recovery.
+- [ ] Implement customer order cancellation/partial remainder refunds, COD collection/manual refund handling, and rejected-return disposal or return-to-customer operations.
+- [ ] Finish Admin policy editing and public disclosure of category exclusions and return-shipping terms.
+- [ ] Obtain finance sign-off on reconciliation fixtures/refund allocation and operations sign-off on carrier exception/manual recovery procedures. Automated tests do not constitute those approvals.
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 
