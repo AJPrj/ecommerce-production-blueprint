@@ -29,3 +29,6 @@ Schema changes follow expand/contract and support overlapping application versio
 
 ## 10. Measure before distributing
 Read replicas, search clusters, partitioning and microservices are introduced based on measured bottlenecks and operational requirements.
+
+## 11. Record commercial rules and provisional assumptions
+The current Kerala dispatch, GST-inclusive price, shipping, rounding, invoice, credit-note, cancellation, and return decisions are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Its development defaults are not production tax approval; synthetic GST data stays isolated in the demo database.
