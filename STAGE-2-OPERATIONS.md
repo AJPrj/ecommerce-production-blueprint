@@ -50,7 +50,7 @@ Pickup scheduling is currently a recorded staff operation. A reverse-carrier boo
 
 ## Verification matrix
 
-The repository test suites are the executable evidence; checked tracker entries are updated only after successful runs.
+The repository test suites are the executable evidence. On 2026-10-11, `spotlessJavaCheck test` passed 63 backend tests across 13 suites, including 16 Stage 2 integration tests, against a fresh PostgreSQL database migrated through V22. `npm test -- --maxWorkers=1 --reporter=verbose` passed 11 React tests, and `npm run build` succeeded. The finance and operations approvals below remain open.
 
 | Gate | Evidence |
 |---|---|
@@ -87,4 +87,4 @@ The finance report is bounded to at most 100 rows per request, uses durable paym
 - Complete the invoice/credit-note and tax-owner gates already tracked in Stage 1.
 - Finance must review the known reconciliation fixtures and refund allocation policy; operations must sign off the exception/recovery procedures against the selected carrier.
 
-Schema: `V20` extends fulfillment/returns and adds audit/command/address records plus partial reservation counters. `V21` snapshots order-line return policy and records per-package return allocations. Roll forward with Flyway; do not edit previously applied migrations.
+Schema: `V20` extends fulfillment/returns and adds audit/command/address records plus partial reservation counters. `V21` snapshots order-line return policy and records per-package return allocations. `V22` adds lookup indexes for shipment, return, allocation, and history reads. Roll forward with Flyway; do not edit previously applied migrations.

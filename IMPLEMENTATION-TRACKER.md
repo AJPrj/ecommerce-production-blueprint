@@ -84,7 +84,7 @@ Contracts, role matrix, recovery procedures, fixture expectations, and limitatio
 - [x] Replace the static fulfillment dashboard with API-backed order/return queues and actions; add customer tracking/returns and saved-address screens.
 - [x] Add Fulfillment, Returns, Refunds, Support, Finance and Reporting roles with server authorization and staff login; add privileged audit and transactional outbox records.
 - [x] Add a bounded financial reconciliation report based on durable payment/refund records, including mismatch visibility.
-- [ ] Record final backend/React verification totals after the complete suites pass.
+- [x] Record automated verification: on 2026-10-11, backend formatting and all 63 tests passed (13 suites, including 16 Stage 2 integration tests) against a fresh PostgreSQL database migrated through V22; all 11 React tests and the production build passed. Finance and operations acceptance remain separate unchecked gates below.
 - [ ] Integrate and prove a real carrier's booking, label printing, reverse pickup, timeouts/retries and exception recovery.
 - [ ] Implement customer order cancellation/partial remainder refunds, COD collection/manual refund handling, and rejected-return disposal or return-to-customer operations.
 - [ ] Finish Admin policy editing and public disclosure of category exclusions and return-shipping terms.
