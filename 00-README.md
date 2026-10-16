@@ -34,6 +34,8 @@ Do not introduce distributed systems merely because they are fashionable. Use as
 4. Operational workflows
 5. Reporting and analytics
 
+The dedicated Admin/business console experience is defined in [PART XVIII — Dedicated Admin Console Blueprint](18-admin-console-blueprint.md). It covers the admin shell, dashboard, route inventory, existing operations integration, role-based access, workflows, API boundaries and release acceptance criteria. Consult the implementation tracker to distinguish designed functionality from implemented and production-approved functionality.
+
 ## Critical production principles
 
 - The server is authoritative for price, tax, inventory, discounts, order state, and payment state.
@@ -70,6 +72,7 @@ Do not introduce distributed systems merely because they are fashionable. Use as
 | XIV | Testing Strategy |
 | XV | Production Readiness Checklist |
 | XVI | Commercial Operations |
+| XVIII | [Dedicated Admin Console Blueprint](18-admin-console-blueprint.md) |
 
 ## Existing requirements incorporated
 

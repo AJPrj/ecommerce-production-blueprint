@@ -1,6 +1,6 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-10
+Last updated: 2026-10-14
 
 Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, and real-provider evidence are not complete. Backend API and React checkout flows have integration and user-level coverage for pre-order GST quotes, stale quote rejection, COD, stock conflicts, Razorpay success, decline/retry, refresh recovery, changed totals, and the Admin payment review queue.
 
@@ -86,9 +86,24 @@ Contracts, role matrix, recovery procedures, fixture expectations, and limitatio
 - [x] Add a bounded financial reconciliation report based on durable payment/refund records, including mismatch visibility.
 - [x] Record automated verification: on 2026-10-11, backend formatting and all 63 tests passed (13 suites, including 16 Stage 2 integration tests) against a fresh PostgreSQL database migrated through V22; all 11 React tests and the production build passed. Finance and operations acceptance remain separate unchecked gates below.
 - [ ] Integrate and prove a real carrier's booking, label printing, reverse pickup, timeouts/retries and exception recovery.
-- [ ] Implement customer order cancellation/partial remainder refunds, COD collection/manual refund handling, and rejected-return disposal or return-to-customer operations.
-- [ ] Finish Admin policy editing and public disclosure of category exclusions and return-shipping terms.
+- [x] Implement customer order cancellation/partial remainder refunds and COD collection/manual refund commands with durable evidence, role separation, audit and stable retries (V23). The 2026-10-14 backend run verifies the 19 cancellation/COD integration cases. Earlier fixtures incorrectly used `COD_PENDING`; they now use the actual `COD_DUE` contract without weakening fulfillment checks.
+- [ ] Implement rejected-return disposal or return-to-customer operations after business/carrier acceptance.
+- [x] Implement effective-dated Admin policy editing and public disclosure of category exclusions/return-shipping terms (V25); existing order return snapshots remain immutable. Final public policy values still require business approval.
 - [ ] Obtain finance sign-off on reconciliation fixtures/refund allocation and operations sign-off on carrier exception/manual recovery procedures. Automated tests do not constitute those approvals.
+
+## Dedicated web admin console — 2026-10-14
+
+Status: **Administration modules implemented; automated verification passed; production and browser acceptance remain separate**
+
+Implementation details and configuration are in [ADMIN-CONSOLE-IMPLEMENTATION.md](ADMIN-CONSOLE-IMPLEMENTATION.md). The supplied desktop reference now informs the actual `/admin` shell and overview, with independent storefront layout and lazy route pages. Every proposed navigation group has real backend-backed workflows: catalog/taxonomy/variants/publication/images, inventory/history/reconciliation, orders/fulfillment/returns/refunds/COD, payments/tax/reports, customers, promotions/coupons, settings, staff/roles and audit.
+
+- Server capability projections control menus and page access; APIs independently enforce role grants and least-privilege data projections. Staff permission/status changes revoke versioned sessions. The Redis namespace upgrade requires users to sign in again.
+- V24–V28 add catalog versions/publication/taxonomy/thresholds, effective policies/tax approvals, staff authorization versions, promotion usage and verified image receipts. Signed stock deltas replace stale available-stock edits; metadata saves cannot silently adjust stock. Review pagination no longer skips page-boundary records.
+- New normal-profile GST approval gates fail closed; demo/payment-sandbox fixtures remain isolated development behavior. Dashboard reporting explicitly distinguishes booked merchandise, the selected order cohort's current online ledger, COD and current operational queues.
+- S3-compatible signing and confirmation are implemented and tested against a local stub/known signature vector. Storage stays unavailable until configured; no real bucket/provider operation was performed. Promotion stacking and usage policy are documented in [ADMIN-PROMOTIONS.md](ADMIN-PROMOTIONS.md) and require business acceptance.
+- Backend verification on 2026-10-14: `gradlew.bat --gradle-user-home .gradle --no-daemon spotlessApply test` passed **137 tests, 0 failures/errors, 22 suites** against the isolated local `ecommerce_admin_console_test_20261014` PostgreSQL database through V28. Coverage includes original commerce concurrency/replay workflows plus dashboard/identity/policy/catalog/promotion/upload safety.
+- React verification on 2026-10-14: `npm.cmd run test -- --pool=forks` passed **50 tests across 7 files**; `npm.cmd run build` passed. This includes staff capability/deep-link behavior, authorized finance queue links, catalog/GST/upload, operations/review/denial, promotion and checkout flows. Forked workers avoid intermittent Windows thread startup timeouts; address-entry tests omit artificial typing delays while retaining workflow assertions. Lint completed with nonblocking React refresh/effect/ref and expression-style warnings; Sass still reports existing deprecation notices.
+- Live browser/screenshot verification could not run because no Browser connection was available. Component/API tests do not constitute desktop user acceptance, a live carrier/Razorpay exercise, financial/tax approval or production release approval.
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 

@@ -1,10 +1,10 @@
 # Stage 2 development workflows and acceptance evidence
 
-Status: development implementation in progress. Production acceptance has not been signed off.
+Status: development workflows and dedicated web admin modules are implemented and automated tests pass. Production acceptance has not been signed off. See [ADMIN-CONSOLE-IMPLEMENTATION.md](ADMIN-CONSOLE-IMPLEMENTATION.md) for the current routes, V24–V28 changes and configuration.
 
 ## Working flows
 
-- Staff sign in at `/admin/login`. Operations roles open `/admin/fulfillment`; Admin retains catalog access.
+- Staff sign in at `/admin/login` and open the role-aware `/admin` overview. The dedicated sidebar exposes authorized operations, catalog, finance and administration pages; `/admin/fulfillment` remains available to authorized fulfillment staff.
 - The order queue reads persisted orders, supports order-number search and bounded pagination, and opens order/package details.
 - Prepare a package with explicit line quantities and dimensions. Multiple packages can allocate an order, but their combined active allocations cannot exceed its remaining quantities.
 - Dispatch consumes only that package's stock. The payment and order are locked before reservation and stock changes; the shipment transition, stock movement, history, audit and outbox event commit together. Repeated dispatch does not consume twice.
@@ -74,7 +74,7 @@ UI tests mock API/provider boundaries. These tests do not demonstrate a real cou
 4. **Callback ID collision:** retain the conflict and investigate the provider's event ID/payload; do not issue a new stock movement.
 5. **Received return:** keep units quarantined until inspection. Rejected inspection requires support follow-up; it cannot trigger an online refund.
 6. **Refund timeout:** use the return's retry action. The return fixes the original amount, reason and key; subsequent staff retries reuse those values. The payment reconciliation job handles existing pending refund records, and the return status job links confirmed outcomes. If a failure occurred before a refund ledger entry was created, staff retry is still required.
-7. **COD refund:** the API refuses automated refund until collection verification and a manual payout workflow exist. Keep the request in the returns queue for support handling; never label it refunded without evidence.
+7. **COD refund:** record verified collection evidence first. Refund staff may request a manual refund after accepted inspection; Finance approves and records an external payout reference. The API enforces collected balance, role separation and durable retry references. No automated bank transfer or unverified payout is represented as completed.
 8. **Notifications:** shipment/return events are persisted in the transactional outbox. Email/SMS delivery awaits the notification provider and Stage 3 worker.
 
 The finance report is bounded to at most 100 rows per request, uses durable payment/refund records, flags mismatches, and records an audit event. Large asynchronous export jobs remain future work.
@@ -82,8 +82,8 @@ The finance report is bounded to at most 100 rows per request, uses durable paym
 ## Remaining acceptance decisions and implementation
 
 - Select and integrate the real carrier: durable booking before external calls, stable provider idempotency, timeouts/retries/circuit breaker, shipping labels, reverse pickup, and external delivery/recovery evidence.
-- Complete customer order cancellations, partial remainder refunds, COD collection/manual refunds, and rejected-return disposal/return-to-customer handling.
-- Provide Admin policy editing and pre-purchase disclosure for category exclusions/return-shipping terms. Existing policy snapshots preserve the recorded development defaults.
+- Customer order cancellations, partial remainder refunds and COD collection/manual refund commands are implemented and verified. Rejected-return disposal/return-to-customer handling still needs its business/carrier workflow.
+- Admin policy editing and pre-purchase shipping/return disclosure are implemented; final exclusions and shipping terms still require business acceptance. Existing policy snapshots preserve the promise made at checkout.
 - Complete the invoice/credit-note and tax-owner gates already tracked in Stage 1.
 - Finance must review the known reconciliation fixtures and refund allocation policy; operations must sign off the exception/recovery procedures against the selected carrier.
 
