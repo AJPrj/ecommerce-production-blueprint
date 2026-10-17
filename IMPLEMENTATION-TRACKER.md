@@ -1,6 +1,6 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-14
+Last updated: 2026-10-17
 
 Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, and real-provider evidence are not complete. Backend API and React checkout flows have integration and user-level coverage for pre-order GST quotes, stale quote rejection, COD, stock conflicts, Razorpay success, decline/retry, refresh recovery, changed totals, and the Admin payment review queue.
 
@@ -104,6 +104,16 @@ Implementation details and configuration are in [ADMIN-CONSOLE-IMPLEMENTATION.md
 - Backend verification on 2026-10-14: `gradlew.bat --gradle-user-home .gradle --no-daemon spotlessApply test` passed **137 tests, 0 failures/errors, 22 suites** against the isolated local `ecommerce_admin_console_test_20261014` PostgreSQL database through V28. Coverage includes original commerce concurrency/replay workflows plus dashboard/identity/policy/catalog/promotion/upload safety.
 - React verification on 2026-10-14: `npm.cmd run test -- --pool=forks` passed **50 tests across 7 files**; `npm.cmd run build` passed. This includes staff capability/deep-link behavior, authorized finance queue links, catalog/GST/upload, operations/review/denial, promotion and checkout flows. Forked workers avoid intermittent Windows thread startup timeouts; address-entry tests omit artificial typing delays while retaining workflow assertions. Lint completed with nonblocking React refresh/effect/ref and expression-style warnings; Sass still reports existing deprecation notices.
 - Live browser/screenshot verification could not run because no Browser connection was available. Component/API tests do not constitute desktop user acceptance, a live carrier/Razorpay exercise, financial/tax approval or production release approval.
+
+### Shiprocket integration foundation — 2026-10-17
+
+Status: **In progress; first development slice implemented, verification pending**. See [the HLD](Shiprocket-Integration-HLD.md) and [implementation progress](SHIPROCKET-IMPLEMENTATION.md).
+
+- Added migration `V29`, local-only package preparation, frozen provider-create intent, durable leased operations and explicit opt-in MOCK execution. Normal mode is DISABLED and LIVE fails closed.
+- Extended the existing shipment command API and admin package cards with versioned/idempotent create intent, safe persisted job status and refresh recovery. Booking intent blocks legacy dispatch/package cancellation and customer item cancellation for affected quantities.
+- Added backend/UI eligibility for returns from delivered packages while other packages remain in transit, preserving saved windows and package-specific remaining quantities.
+- Provider creation currently accepts only a complete prepaid package without adjustment history. Shared commercial quantity allocations, split/COD provider booking, checkout shipping quotes, real Shiprocket authentication/contracts, AWB/labels/pickup, cancellation/replacement, webhook tracking and reverse-parcel workflows remain open.
+- Verification results will be recorded after the isolated PostgreSQL suite and frontend checks complete. No live provider operation or production approval is represented by this slice.
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 

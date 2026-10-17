@@ -31,11 +31,13 @@ Repository source links are in section 19.
 
 ## 2. Existing baseline and scope
 
+Implementation has started with a limited, explicitly configured MOCK provider-create foundation. See [implementation progress](SHIPROCKET-IMPLEMENTATION.md) and the [tracker](IMPLEMENTATION-TRACKER.md) for current evidence and remaining phases; the full workflows in this HLD are not yet implemented.
+
 The current documentation records a dedicated lazy-loaded admin console, API-backed split-package fulfillment, exactly-once dispatch stock consumption, return allocation/inspection, online refunds, COD collection/manual refund commands, effective-dated settings and granular capability projections. The normal carrier adapter still refuses real label creation; development profiles generate SANDBOX/DEV references. Durable outbox records exist, but full production worker operation remains an open Stage 3 gate. Shipping must implement the worker capabilities it needs rather than assume those records are already delivered.
 
 ### Required application changes identified by review
 
-| Area | Current behavior | Required implementation delta |
+| Area | Behavior at design review | Required implementation delta |
 |---|---|---|
 | Package creation and edits | `ShippingService.create` calls `CarrierAdapter.createLabel` inside the preparation transaction; the proposed provider creation precedes AWB assignment | Separate local preparation from external creation/labels; freeze parcel inputs when create intent is committed and coordinate cancellation/replacement for later corrections |
 | Commercial/COD allocation | `CommercialAllocationService.collectionCap` assigns remainder paise using previous collections/cancellations; `CodService.collect` verifies that recalculated amount | Persist shared commercial quantity allocations before provider creation; booking, collection, cancellation and return/refund limits must use the same saved amounts |

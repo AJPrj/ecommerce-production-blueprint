@@ -9,15 +9,15 @@ Status: development workflows and dedicated web admin modules are implemented an
 - Prepare a package with explicit line quantities and dimensions. Multiple packages can allocate an order, but their combined active allocations cannot exceed its remaining quantities.
 - Dispatch consumes only that package's stock. The payment and order are locked before reservation and stock changes; the shipment transition, stock movement, history, audit and outbox event commit together. Repeated dispatch does not consume twice.
 - Customers open **Track delivery and returns** from their order page. Tracking refreshes every 30 seconds and offers manual refresh. Each package has its own timeline.
-- Customers request quantities for a delivered order. Eligibility and the return window are saved on each order line at checkout. The default remains seven days; `commerce.returns.excluded-categories` accepts category slugs for future orders. Configuration changes do not rewrite existing promises.
+- Customers request eligible quantities from delivered packages, including when another package remains in transit. Eligibility and the return window are saved on each order line at checkout and evaluated against the specific package delivery time. The default remains seven days; `commerce.returns.excluded-categories` accepts category slugs for future orders. Configuration changes do not rewrite existing promises.
 - Returns allocate against specific delivered packages, preserving separate delivery windows for split shipments. Rejected or customer-cancelled requests release their return allocation.
 - Staff approve/reject requests, record pickup scheduling and receipt, then inspect. Receipt quarantines units; only an explicit restock decision adds a signed inventory movement. A repeated inspection cannot restock twice. A failed inspection blocks the refund.
 - Refund staff select an amount within the immutable goods/tax/delivery allocation and the captured payment balance. The original order totals remain unchanged. The Stage 1 refund service handles provider requests and payment ledger updates.
 - Saved addresses can be listed, added, edited and deleted at `/account/addresses`; changes do not alter an order's address snapshot.
 
-The carrier adapter currently generates **SANDBOX / DEV-** references in `demo`, `payment-sandbox` or `fulfillment-sandbox` profiles. It makes no courier booking. The normal profile refuses label creation until a production carrier is implemented.
+The legacy development carrier generates **SANDBOX / DEV-** references in `demo`, `payment-sandbox` or `fulfillment-sandbox` profiles. It makes no courier booking. Normal-profile package preparation now creates an **UNASSIGNED** package locally and requires future carrier/handover prerequisites before dispatch. Migration `V29` introduces the separately configured [provider-create foundation](SHIPROCKET-IMPLEMENTATION.md); its simulated provider order is not an AWB, courier booking or pickup.
 
-Cancelling a prepared package frees its allocation for repacking. It does **not** cancel the customer's order, release the order reservation, or issue a refund. Customer order cancellation and partial remainder refunds are still separate work.
+Cancelling an unbooked prepared package frees its allocation for repacking. It does **not** cancel the customer's order, release the order reservation, or issue a refund. Once provider intent exists, package and affected item cancellation remain blocked until coordinated provider cancellation/replacement is implemented. Customer order cancellation and partial remainder refunds otherwise use the implemented V23 recovery workflows.
 
 ## API and permission contracts
 
