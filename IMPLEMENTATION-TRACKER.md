@@ -76,7 +76,7 @@ Status: **In progress — development workflows implemented; verification and ex
 
 Contracts, role matrix, recovery procedures, fixture expectations, and limitations are in [STAGE-2-OPERATIONS.md](STAGE-2-OPERATIONS.md).
 
-- [x] Add shipment packages, line allocations, history, signed/deduplicated carrier events, split shipments and customer tracking. The carrier is a development sandbox; normal-profile label creation fails until a real adapter exists.
+- [x] Add shipment packages, line allocations, history, signed/deduplicated carrier events, split shipments and customer tracking. Local package preparation is separate from provider booking; real Shiprocket forward integration and its current package restrictions are recorded below.
 - [x] Consume each dispatched package's reserved units exactly once; retain counters for the order's remaining reservation and reconcile those counters with movements.
 - [x] Add customer return requests with ownership, original order policy snapshots, delivery windows per package, quantity limits and durable idempotency.
 - [x] Add approval/rejection/cancellation, receipt into quarantine, inspection and exactly-once restocking; failed inspection blocks refund.
@@ -105,15 +105,18 @@ Implementation details and configuration are in [ADMIN-CONSOLE-IMPLEMENTATION.md
 - React verification on 2026-10-14: `npm.cmd run test -- --pool=forks` passed **50 tests across 7 files**; `npm.cmd run build` passed. This includes staff capability/deep-link behavior, authorized finance queue links, catalog/GST/upload, operations/review/denial, promotion and checkout flows. Forked workers avoid intermittent Windows thread startup timeouts; address-entry tests omit artificial typing delays while retaining workflow assertions. Lint completed with nonblocking React refresh/effect/ref and expression-style warnings; Sass still reports existing deprecation notices.
 - Live browser/screenshot verification could not run because no Browser connection was available. Component/API tests do not constitute desktop user acceptance, a live carrier/Razorpay exercise, financial/tax approval or production release approval.
 
-### Shiprocket integration foundation — 2026-10-17
+### Shiprocket forward integration — 2026-10-17
 
-Status: **In progress; first development slice implemented, verification pending**. See [the HLD](Shiprocket-Integration-HLD.md) and [implementation progress](SHIPROCKET-IMPLEMENTATION.md).
+Status: **Real forward adapter/workflow implemented; full HLD and live acceptance remain in progress**. See [the HLD](Shiprocket-Integration-HLD.md) and [implementation progress](SHIPROCKET-IMPLEMENTATION.md).
 
-- Added migration `V29`, local-only package preparation, frozen provider-create intent, durable leased operations and explicit opt-in MOCK execution. Normal mode is DISABLED and LIVE fails closed.
-- Extended the existing shipment command API and admin package cards with versioned/idempotent create intent, safe persisted job status and refresh recovery. Booking intent blocks legacy dispatch/package cancellation and customer item cancellation for affected quantities.
+- Added additive migrations `V29`–`V31`, local preparation, frozen provider intent, leased/fenced workers, quote snapshots and a verified tracking inbox. Mode defaults to DISABLED; LIVE uses the actual Shiprocket adapter with API credentials and registered origin, while MOCK is explicit development behavior.
+- Implemented real authentication/token reuse and one-401 refresh, forward creation/exact lookup, serviceability, AWB, label/manifest, pickup, cancellation/read confirmation and tracking API contracts. Local HTTP stub tests cover transport/auth/error behavior without a real provider account.
+- Extended existing admin package cards/commands with quote approval, separate carrier costs, private PDF access, pickup readiness, physical handover, persisted job recovery and safe cancellation. Booking/pickup changes no stock; explicit dispatch consumes once. Ambiguous creates/AWB operations reconcile by lookup, never blind replay.
 - Added backend/UI eligibility for returns from delivered packages while other packages remain in transit, preserving saved windows and package-specific remaining quantities.
-- Provider creation currently accepts only a complete prepaid package without adjustment history. Shared commercial quantity allocations, split/COD provider booking, checkout shipping quotes, real Shiprocket authentication/contracts, AWB/labels/pickup, cancellation/replacement, webhook tracking and reverse-parcel workflows remain open.
-- Verification results will be recorded after the isolated PostgreSQL suite and frontend checks complete. No live provider operation or production approval is represented by this slice.
+- Shiprocket callbacks use mandatory `x-api-key`, durable per-scan deduplication and account/mode/AWB validation, with bounded polling. Missing dispatch/unmapped/RTO evidence cannot fabricate delivery, financial collection, restock or refunds.
+- Provider creation currently accepts only a complete prepaid package without adjustment history. Shared commercial quantity allocations, split/COD provider booking, checkout shipping choices, automatic cancellation orchestration, reverse-parcel workflows and rich RTO intake remain open. Reverse API primitives are implemented but not enabled as the business workflow.
+- Full backend suite on 2026-10-17 passed **179 tests in 29 suites, 0 failures/errors**, using isolated `ecommerce_shiprocket_test_20261016` PostgreSQL through `V31`. After further account, timeout, audit and document-download hardening, the shipping suite passed **44 tests in 7 suites, 0 failures/errors** and shipping formatting checks passed. Final frontend shipping/operations checks passed **44 tests across 2 files**; production build passed with existing Sass warnings. Focused frontend lint passed with two nonblocking React warnings about the provider panel's clock initialization and initial loading effect. The original missing-handover-field regression was fixed without changing global JSON validation or weakening handover requirements.
+- No real-account shipment, live wallet action, browser acceptance or production approval was performed.
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 

@@ -31,7 +31,7 @@ Repository source links are in section 19.
 
 ## 2. Existing baseline and scope
 
-Implementation has started with a limited, explicitly configured MOCK provider-create foundation. See [implementation progress](SHIPROCKET-IMPLEMENTATION.md) and the [tracker](IMPLEMENTATION-TRACKER.md) for current evidence and remaining phases; the full workflows in this HLD are not yet implemented.
+Implementation includes the real Shiprocket forward adapter and assisted create → courier quote → AWB → documents → pickup → handover flow, plus verified tracking and cancellation. MOCK remains separate test behavior. See [implementation progress](SHIPROCKET-IMPLEMENTATION.md) and the [tracker](IMPLEMENTATION-TRACKER.md) for scope limits, current evidence and remaining phases; the full HLD is not yet implemented.
 
 The current documentation records a dedicated lazy-loaded admin console, API-backed split-package fulfillment, exactly-once dispatch stock consumption, return allocation/inspection, online refunds, COD collection/manual refund commands, effective-dated settings and granular capability projections. The normal carrier adapter still refuses real label creation; development profiles generate SANDBOX/DEV references. Durable outbox records exist, but full production worker operation remains an open Stage 3 gate. Shipping must implement the worker capabilities it needs rather than assume those records are already delivered.
 

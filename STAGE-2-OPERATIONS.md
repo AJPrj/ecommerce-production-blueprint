@@ -15,9 +15,9 @@ Status: development workflows and dedicated web admin modules are implemented an
 - Refund staff select an amount within the immutable goods/tax/delivery allocation and the captured payment balance. The original order totals remain unchanged. The Stage 1 refund service handles provider requests and payment ledger updates.
 - Saved addresses can be listed, added, edited and deleted at `/account/addresses`; changes do not alter an order's address snapshot.
 
-The legacy development carrier generates **SANDBOX / DEV-** references in `demo`, `payment-sandbox` or `fulfillment-sandbox` profiles. It makes no courier booking. Normal-profile package preparation now creates an **UNASSIGNED** package locally and requires future carrier/handover prerequisites before dispatch. Migration `V29` introduces the separately configured [provider-create foundation](SHIPROCKET-IMPLEMENTATION.md); its simulated provider order is not an AWB, courier booking or pickup.
+The legacy development carrier generates **SANDBOX / DEV-** references in `demo`, `payment-sandbox` or `fulfillment-sandbox` profiles without booking a real courier. Normal-profile preparation creates an **UNASSIGNED** package locally. The separately configured [real Shiprocket forward integration](SHIPROCKET-IMPLEMENTATION.md) adds provider creation, courier quotes, AWB, documents, pickup, cancellation and verified tracking through migrations `V29`–`V31`. Provider-backed dispatch requires confirmed AWB/label/pickup and explicit physical handover. MOCK remains a separate development mode.
 
-Cancelling an unbooked prepared package frees its allocation for repacking. It does **not** cancel the customer's order, release the order reservation, or issue a refund. Once provider intent exists, package and affected item cancellation remain blocked until coordinated provider cancellation/replacement is implemented. Customer order cancellation and partial remainder refunds otherwise use the implemented V23 recovery workflows.
+Cancelling an unbooked prepared package frees its allocation for repacking. It does **not** cancel the customer's order, release the order reservation, or issue a refund. Once provider intent exists, request `CANCEL_BOOKING` and confirm the provider outcome before local cancellation/repacking or affected item cancellation. An unknown remote outcome retains allocation protection. Automatic customer-cancellation coordination remains open; otherwise order cancellation and partial remainder refunds use the implemented V23 recovery workflows.
 
 ## API and permission contracts
 
@@ -81,7 +81,7 @@ The finance report is bounded to at most 100 rows per request, uses durable paym
 
 ## Remaining acceptance decisions and implementation
 
-- Select and integrate the real carrier: durable booking before external calls, stable provider idempotency, timeouts/retries/circuit breaker, shipping labels, reverse pickup, and external delivery/recovery evidence.
+- Validate the implemented Shiprocket forward flow against an operator-controlled real account, including wallet/label/pickup/tracking/cancellation recovery. Complete shared split/COD commercial allocation, checkout delivery choices, reverse-parcel workflows, provider resilience/rate limits and the remaining [HLD phases](SHIPROCKET-IMPLEMENTATION.md).
 - Customer order cancellations, partial remainder refunds and COD collection/manual refund commands are implemented and verified. Rejected-return disposal/return-to-customer handling still needs its business/carrier workflow.
 - Admin policy editing and pre-purchase shipping/return disclosure are implemented; final exclusions and shipping terms still require business acceptance. Existing policy snapshots preserve the promise made at checkout.
 - Complete the invoice/credit-note and tax-owner gates already tracked in Stage 1.
