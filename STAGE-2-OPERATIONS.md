@@ -1,5 +1,7 @@
 # Stage 2 development workflows and acceptance evidence
 
+The existing development/assisted contracts below remain applicable to saved `ASSISTED` records. The dashboard standard-order section describes the new opt-in workflow and its distinct dispatch/cancellation/return behavior.
+
 Status: development workflows and dedicated web admin modules are implemented and automated tests pass. Production acceptance has not been signed off. See [ADMIN-CONSOLE-IMPLEMENTATION.md](ADMIN-CONSOLE-IMPLEMENTATION.md) for the current routes, V24–V28 changes and configuration.
 
 ## Working flows
@@ -17,19 +19,21 @@ Status: development workflows and dedicated web admin modules are implemented an
 
 The legacy development carrier generates **SANDBOX / DEV-** references in `demo`, `payment-sandbox` or `fulfillment-sandbox` profiles without booking a real courier. Normal-profile preparation creates an **UNASSIGNED** package locally. The separately configured [real Shiprocket forward integration](SHIPROCKET-IMPLEMENTATION.md) adds provider creation, courier quotes, AWB, documents, pickup, cancellation and verified tracking through migrations `V29`–`V31`. Provider-backed dispatch requires confirmed AWB/label/pickup and explicit physical handover. MOCK remains a separate development mode.
 
-Cancelling an unbooked prepared package frees its allocation for repacking. It does **not** cancel the customer's order, release the order reservation, or issue a refund. Once provider intent exists, request `CANCEL_BOOKING` and confirm the provider outcome before local cancellation/repacking or affected item cancellation. An unknown remote outcome retains allocation protection. Automatic customer-cancellation coordination remains open; otherwise order cancellation and partial remainder refunds use the implemented V23 recovery workflows.
+Cancelling an unbooked prepared package frees its allocation for repacking. It does **not** cancel the customer's order, release the order reservation, or issue a refund. Once provider intent exists, request `CANCEL_BOOKING` and confirm the provider outcome before local cancellation/repacking or affected item cancellation. An unknown remote outcome retains allocation protection. For saved dashboard orders, customer cancellation coordination now performs provider confirmation and remaining-item replacement automatically. Other order cancellation and partial remainder refunds use the existing V23 recovery workflows.
 
-## Approved dashboard-managed MPS target — not implemented
+## Dashboard-managed standard orders
 
-On 20 October 2026 the owner approved [HLD v1.2](Shiprocket-Integration-HLD.md). The workflows above still describe the existing assisted application. The new target automatically creates a forward Shiprocket MPS order after verified prepaid capture or accepted COD, with one separately packed unit per purchased unit and one customer-facing master AWB. Staff perform courier booking, documents and forward/reverse pickup in Shiprocket; the webapp retains customer tracking, cancellation, return policy and commercial/inventory authority.
+The owner clarified [HLD v1.3](Shiprocket-Integration-HLD.md) on 20 October 2026: all items belong to one standard Shiprocket order with one parcel estimate and one AWB. Separate physical parcels/MPS are outside this release.
 
-Required changes include Admin SKU/box/material/default packing configuration and actionable not-created alerts, AWB-null provider-order discovery, master/packet mappings, and verified transport invoking the shared exactly-once dispatch service. Partial delivery must remain partial/under review, not whole-order delivery inferred from a master reference. The owner reports MPS enabled; exact API/packet/COD/update contracts still require verification.
+For new orders saved with `DASHBOARD_ORDER`, accepted COD and verified prepaid capture automatically queue shipping. Admin configures measured box presets, material/default allowances and product measurements. Missing required inputs keep the customer order confirmed and show an actionable not-created alert; current-version retries resume preparation.
 
-The approved new self-service cancellation cutoff is AWB assignment, for individual item quantities. Pending requests require provider confirmation; later exceptions are support work. Staff must check pending cancellations before assigning AWB and book before sealing/label finalization; dashboard races still require reconciliation. Save the cutoff as prospective effective policy and preserve historical order promises.
+Staff assign the courier/AWB, print documents and schedule forward/reverse pickup in Shiprocket. The application discovers dashboard AWBs even while local tracking is empty. Verified webhooks and bounded polling update the local customer timeline. Proven transport evidence invokes exactly-once reservation consumption for this saved workflow; AWB/label/pickup scheduling alone does not dispatch stock.
 
-Eligible returns will be accepted automatically under saved policy and create linked reverse orders; staff arrange reverse pickup in Shiprocket. Warehouse receipt/inspection remain explicit. Prepaid cancellation refunds follow confirmed cancellation; return refunds follow successful receipt/inspection. COD refunds retain collected-funds and controlled-payout requirements. No stock, financial or return-policy gate is bypassed by this design approval.
+Individual-quantity cancellation is available before AWB assignment. A pending request does not release stock or initiate a refund. The worker reads Shiprocket, confirms cancellation of the old unassigned order, applies the selected local quantities, then queues remaining items with their original financial shares. COD collection is reduced; captured prepaid refunds follow confirmed cancellation. Booking races and uncertain outcomes require review. Historical assisted orders retain their old cutoff.
 
-See [the implementation plan](SHIPROCKET-IMPLEMENTATION.md) for phases and current limitations. Existing LIVE/worker environment settings alone do not activate the redesign; no new runtime acceptance is recorded here.
+Eligible new-mode returns are automatically approved under the saved policy and create linked reverse orders. Reverse delivery scans enter history; warehouse receipt, inspection, restocking and refunds remain separate controlled actions. COD refund limits and Finance payout evidence remain unchanged.
+
+Enable `SHIPPING_WORKFLOW_MODE=DASHBOARD_ORDER` only after compatible backend/frontend deployment, migrations and Admin packaging setup. Both shipping and tracking workers must run, with backend runtime credentials/pickup/webhook settings. See [runtime instructions and recovery](SHIPROCKET-IMPLEMENTATION.md). Local verification does not authorize a production rollout or replace real-account acceptance.
 
 ## API and permission contracts
 
@@ -58,7 +62,7 @@ Carrier events use `POST /api/v1/shipping/webhooks/carrier` with an HMAC-SHA256 
 - Return: `REQUESTED → APPROVED → PICKUP_SCHEDULED → RECEIVED → INSPECTED → REFUND_PENDING → REFUNDED`. Staff may record receipt directly after approval. Requested returns may be rejected/cancelled. Failed inspection ends in `QC_REJECTED`.
 - Return inventory: `AWAITING_RECEIPT → QUARANTINED → RESTOCKED` or retained quarantine/rejected inspection.
 
-Pickup scheduling is currently a recorded staff operation. A reverse-carrier booking and customer evidence uploads are not implemented.
+For assisted returns, pickup scheduling remains a recorded staff operation. Saved dashboard returns automatically create linked reverse orders; staff arrange pickup in Shiprocket. Customer evidence uploads remain future work.
 
 ## Verification matrix
 
@@ -93,10 +97,10 @@ The finance report is bounded to at most 100 rows per request, uses durable paym
 
 ## Remaining acceptance decisions and implementation
 
-- Verify and implement the approved dashboard-managed MPS phases: provider contracts/shared COD allocations, automatic packing and creation, dashboard AWB discovery, packet-aware tracking/dispatch, pre-AWB quantity cancellation and policy-based reverse/refund orchestration. Validate through an operator-controlled real account and provider recovery/rate-limit fixtures. Checkout delivery choices are later scope; see [implementation progress](SHIPROCKET-IMPLEMENTATION.md).
+- Complete controlled real-account acceptance of the dashboard standard-order workflow, including pickup/address permissions, prepaid/COD creation, manual AWB assignment, callbacks/polling, cancellation races and reverse transport. Local automated tests are recorded in [implementation progress](SHIPROCKET-IMPLEMENTATION.md); checkout delivery choices and separately shipped parcels remain later scope.
 - Customer order cancellations, partial remainder refunds and COD collection/manual refund commands are implemented and verified. Rejected-return disposal/return-to-customer handling still needs its business/carrier workflow.
 - Admin policy editing and pre-purchase shipping/return disclosure are implemented; final exclusions and shipping terms still require business acceptance. Existing policy snapshots preserve the promise made at checkout.
 - Complete the invoice/credit-note and tax-owner gates already tracked in Stage 1.
 - Finance must review the known reconciliation fixtures and refund allocation policy; operations must sign off the exception/recovery procedures against the selected carrier.
 
-Schema: `V20` extends fulfillment/returns and adds audit/command/address records plus partial reservation counters. `V21` snapshots order-line return policy and records per-package return allocations. `V22` adds lookup indexes for shipment, return, allocation, and history reads. Roll forward with Flyway; do not edit previously applied migrations.
+Schema: `V20` extends fulfillment/returns and adds audit/command/address records plus partial reservation counters. `V21` snapshots order-line return policy and records per-package return allocations. `V22` adds lookup indexes for shipment, return, allocation, and history reads. V33 adds dashboard order planning/settings, V34 adds confirmed item-cancellation orchestration, and V35 adds independent reverse orders/tracking. Roll forward with Flyway; do not edit previously applied migrations.
