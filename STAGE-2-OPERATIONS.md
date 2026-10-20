@@ -19,6 +19,18 @@ The legacy development carrier generates **SANDBOX / DEV-** references in `demo`
 
 Cancelling an unbooked prepared package frees its allocation for repacking. It does **not** cancel the customer's order, release the order reservation, or issue a refund. Once provider intent exists, request `CANCEL_BOOKING` and confirm the provider outcome before local cancellation/repacking or affected item cancellation. An unknown remote outcome retains allocation protection. Automatic customer-cancellation coordination remains open; otherwise order cancellation and partial remainder refunds use the implemented V23 recovery workflows.
 
+## Approved dashboard-managed MPS target — not implemented
+
+On 20 October 2026 the owner approved [HLD v1.2](Shiprocket-Integration-HLD.md). The workflows above still describe the existing assisted application. The new target automatically creates a forward Shiprocket MPS order after verified prepaid capture or accepted COD, with one separately packed unit per purchased unit and one customer-facing master AWB. Staff perform courier booking, documents and forward/reverse pickup in Shiprocket; the webapp retains customer tracking, cancellation, return policy and commercial/inventory authority.
+
+Required changes include Admin SKU/box/material/default packing configuration and actionable not-created alerts, AWB-null provider-order discovery, master/packet mappings, and verified transport invoking the shared exactly-once dispatch service. Partial delivery must remain partial/under review, not whole-order delivery inferred from a master reference. The owner reports MPS enabled; exact API/packet/COD/update contracts still require verification.
+
+The approved new self-service cancellation cutoff is AWB assignment, for individual item quantities. Pending requests require provider confirmation; later exceptions are support work. Staff must check pending cancellations before assigning AWB and book before sealing/label finalization; dashboard races still require reconciliation. Save the cutoff as prospective effective policy and preserve historical order promises.
+
+Eligible returns will be accepted automatically under saved policy and create linked reverse orders; staff arrange reverse pickup in Shiprocket. Warehouse receipt/inspection remain explicit. Prepaid cancellation refunds follow confirmed cancellation; return refunds follow successful receipt/inspection. COD refunds retain collected-funds and controlled-payout requirements. No stock, financial or return-policy gate is bypassed by this design approval.
+
+See [the implementation plan](SHIPROCKET-IMPLEMENTATION.md) for phases and current limitations. Existing LIVE/worker environment settings alone do not activate the redesign; no new runtime acceptance is recorded here.
+
 ## API and permission contracts
 
 All browser mutations require the existing session and CSRF token. Shipment creation and return requests require an `Idempotency-Key`; reusing a key with changed inputs returns a conflict.
@@ -81,7 +93,7 @@ The finance report is bounded to at most 100 rows per request, uses durable paym
 
 ## Remaining acceptance decisions and implementation
 
-- Validate the implemented Shiprocket forward flow against an operator-controlled real account, including wallet/label/pickup/tracking/cancellation recovery. Complete shared split/COD commercial allocation, checkout delivery choices, reverse-parcel workflows, provider resilience/rate limits and the remaining [HLD phases](SHIPROCKET-IMPLEMENTATION.md).
+- Verify and implement the approved dashboard-managed MPS phases: provider contracts/shared COD allocations, automatic packing and creation, dashboard AWB discovery, packet-aware tracking/dispatch, pre-AWB quantity cancellation and policy-based reverse/refund orchestration. Validate through an operator-controlled real account and provider recovery/rate-limit fixtures. Checkout delivery choices are later scope; see [implementation progress](SHIPROCKET-IMPLEMENTATION.md).
 - Customer order cancellations, partial remainder refunds and COD collection/manual refund commands are implemented and verified. Rejected-return disposal/return-to-customer handling still needs its business/carrier workflow.
 - Admin policy editing and pre-purchase shipping/return disclosure are implemented; final exclusions and shipping terms still require business acceptance. Existing policy snapshots preserve the promise made at checkout.
 - Complete the invoice/credit-note and tax-owner gates already tracked in Stage 1.

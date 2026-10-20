@@ -1,8 +1,8 @@
 # Shiprocket implementation progress
 
-Updated: 17 October 2026. The real Shiprocket forward-fulfillment path from [the HLD](Shiprocket-Integration-HLD.md) is implemented. The full HLD remains **in progress**, with the limits and remaining phases below. No live account shipment or production approval is claimed.
+Updated: 20 October 2026. The existing real Shiprocket adapter and assisted forward workflow are implemented. The owner-approved [HLD version 1.2](Shiprocket-Integration-HLD.md) changes the target to automatic prepaid/COD order creation with dashboard-managed MPS shipping. That redesigned workflow is **not yet implemented**. Existing test evidence remains historical; no new live shipment or production approval is claimed.
 
-## Implemented forward integration
+## Implemented forward integration — existing assisted foundation
 
 - Migrations `V29`–`V31` add immutable provider intent, leased operations, account-scoped booking/AWB references, stored courier quotes, a deduplicated tracking inbox and polling leases. Previously applied migrations and original commercial snapshots are unchanged.
 - Package preparation is local. The normal profile creates `UNASSIGNED` packages without tracking numbers; existing development profiles retain their clearly marked `SANDBOX` references. Preparation does not call a shipping provider.
@@ -19,7 +19,36 @@ The provider boundary has `DISABLED`, `MOCK` and `LIVE` modes. The normal defaul
 
 The current create flow accepts **one complete prepaid package with no cancellation/return history**. Its commercial snapshot consists of the original line amounts in full. COD and split-package provider creation remain blocked until the shared quantity allocation contract and all financial callers are implemented. Existing development fulfillment/COD workflows remain available for packages without an integration booking.
 
-## Configuration and API
+## Approved target — dashboard-managed MPS, 20 October 2026
+
+These are approved requirements, not current application behavior:
+
+1. Verified prepaid capture or accepted COD automatically commits a shipping work item. The worker creates one Shiprocket order/MPS master for the customer order and its complete address/origin; separate customer orders are never grouped by postcode.
+2. Estimate one independently packed unit per purchased unit. Use product measurements, suitable Admin box presets, measured box tare plus allowances, or the configured surface-area/material-weight fallback. A product complete-tare override takes precedence and is not counted twice.
+3. Keep the customer order confirmed when measurements/configuration are missing. Show an actionable Admin alert saying the order was not created in Shiprocket, with affected SKUs/fields, and allow safe resume after correction.
+4. Staff select couriers, assign AWBs, print documents and schedule forward/reverse pickup through Shiprocket. Normal new-mode orders do not require the current webapp package/create/handover clicks.
+5. Discover master/child AWBs through scheduled provider-order reads even before a local AWB exists. Combine verified webhooks with bounded API reconciliation; customer refreshes read our saved timeline.
+6. Proven pickup/in-transit evidence invokes the existing exactly-once dispatch operation for proven quantities. This deliberately changes the current missing-dispatch review behavior; AWB assignment and scheduled pickup still do not consume stock.
+7. Show one customer master tracking reference, preserve available packet evidence, show Partially delivered and alert Admin for partial delivery, and review uncertain item delivery rather than granting return eligibility to every item.
+8. Allow individual-item/quantity self-service cancellation only before confirmed master/child AWB assignment. Resolve concurrent booking and provider updates before reporting success, releasing reservations or initiating prepaid refunds. Post-AWB exceptions are Support/Admin work.
+9. Automatically accept eligible returns under the saved policy and create linked reverse orders. Staff arrange reverse transport in Shiprocket. Prepaid return refunds follow actual warehouse receipt and successful inspection; COD refunds retain verified-collection and controlled-payout rules.
+
+The owner reports MPS enabled and successful webhook registration. Exact MPS creation/update/packet/label/COD and reverse API contracts still require verified fixtures; ordinary order creation is not proof of MPS support. Original financial snapshots, quantity shares, privacy and tax/invoice release gates remain unchanged. Apply the new cancellation policy prospectively through saved effective policy; do not reduce cancellation promises on historical orders.
+
+### Implementation sequence
+
+| Phase | Required work |
+|---|---|
+| 1 | Verify account MPS/update/reverse contracts; add master/packet identities and shared commercial allocations; preserve existing assisted records |
+| 2 | Add SKU/box/material/default settings, per-unit planner, actionable alerts and idempotent prepaid/COD shipping triggers |
+| 3 | Implement MPS creation, awaiting-AWB dashboard discovery, packet mappings and local tracking |
+| 4 | Connect proven transport evidence to shared inventory dispatch; implement pre-AWB item cancellation, safe updates/replacements and cutoff UI |
+| 5 | Implement policy-based return acceptance, reverse creation/sync, partial-delivery/receipt/QC and refund integration |
+| 6 | Run controlled account acceptance and deploy compatible readers/writers before enabling the new mode |
+
+The existing LIVE mode and worker environment variables below select the current adapter; setting them alone does not enable this design. Save a workflow-mode/configuration revision when the new mode is implemented. Do not reinterpret old assisted jobs after a configuration change. See HLD sections 6, 13, 16 and 17 for formulas, cancellation/refund rules, test cases and rollout gates.
+
+## Current configuration and API
 
 For deterministic local development, set `SHIPPING_PROVIDER_MODE=MOCK`. For real account integration, configure the backend process or secret manager:
 
@@ -58,11 +87,10 @@ Do not change the provider mode to process an operation saved for another mode. 
 
 Verification is recorded in [the implementation tracker](IMPLEMENTATION-TRACKER.md). A local HTTP server verifies real adapter wire contracts and token/error behavior; PostgreSQL integration tests verify the admin workflow, recovery and stock invariants. Component tests verify the LIVE action/confirmation flow. These checks do not send requests to a real Shiprocket account.
 
-Remaining HLD work:
+Remaining approved HLD work:
 
-1. Shared stable commercial quantity allocations and historical review; adapt COD, cancellation and return/refund callers before enabling split/COD booking.
-2. Package estimation, serviceability, Standard/Express policy, checkout shipping quote/review-hash integration and immutable customer delivery promises.
-3. Automatic customer-cancellation coordination with booked packages; current staff cancellation/repacking is explicit and waits for confirmed provider cancellation.
-4. Return-linked reverse parcel allocation, booking/receipt UI and quantity-aware warehouse handling. Low-level real reverse-create/AWB API methods exist and are HTTP-contract tested, but the reverse business workflow is not yet enabled.
-5. Rich RTO/lost domain aggregates and intake decisions beyond the current exception projection; operator review/recovery UI for every inbox case.
-6. Live account/operations acceptance, carrier-specific contract fixtures and existing invoice, tax, secrets, privacy, rate-limit and production release gates.
+1. Complete the six dashboard-managed MPS phases above, including shared COD/partial-cancellation allocations and safe treatment of historical assisted records.
+2. Verify master/packet delivery semantics, dashboard measurement/amount observations, cancellation races, reverse-service capabilities and unknown-operation recovery.
+3. Complete rich RTO/lost intake and operator review beyond the current exception projection.
+4. Record controlled account/operations acceptance and satisfy existing invoice, tax, secrets, privacy, rate-limit and production release gates.
+5. Later extensions: checkout serviceability/Standard–Express choices and associated shipping-quote/review-hash promises. They are not prerequisites for this initial dashboard-managed release.

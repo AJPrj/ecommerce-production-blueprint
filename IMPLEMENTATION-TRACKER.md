@@ -1,6 +1,6 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-17
+Last updated: 2026-10-20
 
 Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, and real-provider evidence are not complete. Backend API and React checkout flows have integration and user-level coverage for pre-order GST quotes, stale quote rejection, COD, stock conflicts, Razorpay success, decline/retry, refresh recovery, changed totals, and the Admin payment review queue.
 
@@ -117,6 +117,17 @@ Status: **Real forward adapter/workflow implemented; full HLD and live acceptanc
 - Provider creation currently accepts only a complete prepaid package without adjustment history. Shared commercial quantity allocations, split/COD provider booking, checkout shipping choices, automatic cancellation orchestration, reverse-parcel workflows and rich RTO intake remain open. Reverse API primitives are implemented but not enabled as the business workflow.
 - Full backend suite on 2026-10-17 passed **179 tests in 29 suites, 0 failures/errors**, using isolated `ecommerce_shiprocket_test_20261016` PostgreSQL through `V31`. After further account, timeout, audit and document-download hardening, the shipping suite passed **44 tests in 7 suites, 0 failures/errors** and shipping formatting checks passed. Final frontend shipping/operations checks passed **44 tests across 2 files**; production build passed with existing Sass warnings. Focused frontend lint passed with two nonblocking React warnings about the provider panel's clock initialization and initial loading effect. The original missing-handover-field regression was fixed without changing global JSON validation or weakening handover requirements.
 - No real-account shipment, live wallet action, browser acceptance or production approval was performed.
+
+### Approved Shiprocket dashboard-managed MPS redesign — 2026-10-20
+
+Status: **Design approved; new workflow not implemented**. [HLD v1.2](Shiprocket-Integration-HLD.md) supersedes the initial assisted target; [implementation progress](SHIPROCKET-IMPLEMENTATION.md) keeps the current adapter/API behavior separate.
+
+- Confirmed prepaid payment or accepted COD will automatically queue one customer-order MPS master with separately packed purchased units and one customer-facing master AWB. The owner reports MPS enabled and webhook registration working; exact MPS/update/reverse API fixtures and lifecycle acceptance are still required.
+- Approved packaging uses product measurements, Admin box presets, measured tare before g/m² estimation, configurable allowances and durable not-created alerts for missing data. Confirmed customer orders remain intact and shipping resumes safely after correction.
+- Staff will ship through Shiprocket. New work includes AWB-null dashboard discovery, webhook/API reconciliation, packet outcomes, partial-delivery alerts and proven transport invoking shared exactly-once dispatch. Current explicit webapp handover and AWB-only polling are not sufficient.
+- Customers can cancel individual quantities before confirmed AWB assignment; post-AWB self-service closes, with support exceptions. Provider outcomes precede local cancellation, reservation release and prepaid refund initiation. New effective policy must preserve historical order promises.
+- Eligible returns will be accepted by saved policy and automatically create reverse orders; staff arrange pickup in Shiprocket. Return refunds follow actual receipt/successful inspection, with verified collections and existing payout controls for COD.
+- Implementation phases are contracts/allocations → packaging/triggers → MPS creation/dashboard sync → dispatch/cancellation → reverse/partial-delivery/refunds → controlled acceptance. Checkout Standard/Express selection moves to later scope. No new code/test/live acceptance is claimed by this documentation revision.
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 

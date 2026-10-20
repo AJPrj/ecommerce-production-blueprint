@@ -1,441 +1,321 @@
 # Shiprocket integration — High-level design
 
-- **Project:** AJPrj/ecommerce-production-blueprint
-- **Version:** 1.1 — proposed implementation design, reconciled with targeted application review
-- **Prepared:** 16 October 2026
-- **Revised:** 16 October 2026
-- **Documentation baseline revision:** `7808336b2b74a0c25aecd04598ae002c39b9bb79`
-- **Delivery model:** Extend the existing React/Spring Boot modular monolith; admin-controlled assisted fulfillment first.
+- **Version:** 1.2 — owner-approved dashboard-managed MPS design; implementation pending.
+- **Prepared:** 16 October 2026. **Revised:** 20 October 2026.
+- **Delivery model:** Existing React/Spring Boot modular monolith; automatic provider creation, shipping in Shiprocket, customer tracking/cancellation/returns in the webapp.
+- **Evidence:** The owner reports MPS enabled and successful webhook registration. These are setup reports, not verified MPS API fixtures or end-to-end acceptance.
 
 ## 1. Purpose and design outcome
 
-Integrate Shiprocket as the real shipping provider behind the existing fulfillment workflows. Customers select a delivery service level once; staff confirm packaging and approve courier booking. The application handles quotes, provider order creation, AWB assignment, documents, pickup, tracking, exceptions and reverse shipping through durable operations.
+A confirmed customer order automatically becomes one Shiprocket order with a multi-packet shipment (MPS), one customer-facing master AWB and separately packed purchased units. Staff select couriers, assign AWBs, print labels and schedule forward/reverse pickup in Shiprocket. The application synchronizes those actions and retains authority over customer orders, money, inventory and return policy.
 
-The initial design was based on the documentation repository. Version 1.1 incorporates targeted local application review of package creation, commercial/COD allocation, return eligibility and customer tracking; it is not a full source-code audit or new runtime acceptance evidence. Proposed behavior remains implementation work. The documentation baseline above does not identify a reviewed application commit; relevant local source paths are recorded in section 19. This revision changes documentation only; application code and live Shiprocket account settings are unchanged.
+Version 1.2 records the decisions approved on 20 October 2026. It supersedes version 1.1's initial webapp-assisted/package-by-package target. This is a documentation/plan revision only. See [implementation progress](SHIPROCKET-IMPLEMENTATION.md) for existing behavior; design approval does not enable features or change live settings.
 
-### Evidence and precedence
-
-Use current implementation notes and the tracker for implemented behavior, commerce decisions/effective settings for commercial policy, and the general blueprint for architectural direction. Older roadmap paragraphs that call fulfillment unimplemented are superseded by the newer Stage 2/admin implementation records.
-
-| Source document | Consequence for this design |
-|---|---|
-| `00-README.md`, `ARCHITECTURE-DECISIONS.md`, `04-backend-architecture.md` | Java 21 / Spring Boot baseline, React/TypeScript, PostgreSQL, Redis support, modular monolith and provider boundaries |
-| `ADMIN-CONSOLE-IMPLEMENTATION.md`, `18-admin-console-blueprint.md` | Extend the implemented admin shell, capabilities, orders, fulfillment, returns, settings and dashboard |
-| `STAGE-2-OPERATIONS.md` | Preserve package allocation, explicit dispatch, stock accounting, tracking, quarantine and existing operations contracts |
-| `IMPLEMENTATION-TRACKER.md` | V23 cancellation/COD and V24–V28 admin work are recorded; real carrier and operational acceptance remain open |
-| `COMMERCE-DECISIONS.md`, `ADMIN-PROMOTIONS.md` | Preserve customer shipping pricing, original merchandise threshold basis, discounts and immutable tax snapshots |
-| `05-rest-api-design.md`, `07-postgresql-database-architecture.md`, `09-reliability-distributed-systems.md` | Versioned API, durable idempotency, additive migrations, outbox, bounded retries and reconciliation |
-| `08-security.md`, `11-observability.md`, `14-testing-strategy.md`, `15-production-readiness-checklist.md` | Backend authorization, CSRF, safe telemetry, concurrency tests and evidence-based release gates |
-
-Repository source links are in section 19.
+Use [commerce decisions](COMMERCE-DECISIONS.md) for financial/return policy and [architecture decisions](ARCHITECTURE-DECISIONS.md) for domain boundaries. Existing tax, invoice, privacy and production release gates remain in force.
 
 ## 2. Existing baseline and scope
 
-Implementation includes the real Shiprocket forward adapter and assisted create → courier quote → AWB → documents → pickup → handover flow, plus verified tracking and cancellation. MOCK remains separate test behavior. See [implementation progress](SHIPROCKET-IMPLEMENTATION.md) and the [tracker](IMPLEMENTATION-TRACKER.md) for scope limits, current evidence and remaining phases; the full HLD is not yet implemented.
+V29–V31 implement manual local preparation, queued provider creation for one complete prepaid package without adjustment history, assisted courier/AWB/documents/pickup, explicit local handover, verified tracking and provider cancellation. Automatic post-order creation, MPS/COD allocation, dashboard synchronization and automatic reverse-business orchestration remain implementation work. Extend existing customer cancellation, inspection, refund and COD-ledger services rather than duplicating them.
 
-The current documentation records a dedicated lazy-loaded admin console, API-backed split-package fulfillment, exactly-once dispatch stock consumption, return allocation/inspection, online refunds, COD collection/manual refund commands, effective-dated settings and granular capability projections. The normal carrier adapter still refuses real label creation; development profiles generate SANDBOX/DEV references. Durable outbox records exist, but full production worker operation remains an open Stage 3 gate. Shipping must implement the worker capabilities it needs rather than assume those records are already delivered.
+The approved first release includes:
 
-### Required application changes identified by review
+- Prepaid orders after verified payment capture and COD orders after local acceptance.
+- One forward master for one customer order, full delivery-address snapshot and pickup origin. Never combine separate customer orders by postcode.
+- One separately packed unit for each purchased unit: quantity three means three estimated packets under the master.
+- Automatic creation without a required staff preparation/create click; actionable Admin alerts when required data is missing.
+- Forward/reverse courier selection, AWB, labels/manifest and pickup managed in Shiprocket.
+- One customer master tracking reference, internal packet evidence, partial-delivery visibility and review where evidence is insufficient.
+- Individual-item/quantity self-service cancellation before AWB assignment; support-only exceptions afterward.
+- Policy-based return acceptance, automatic reverse-order creation, warehouse receipt/inspection and agreed refund timing.
 
-| Area | Behavior at design review | Required implementation delta |
-|---|---|---|
-| Package creation and edits | `ShippingService.create` calls `CarrierAdapter.createLabel` inside the preparation transaction; the proposed provider creation precedes AWB assignment | Separate local preparation from external creation/labels; freeze parcel inputs when create intent is committed and coordinate cancellation/replacement for later corrections |
-| Commercial/COD allocation | `CommercialAllocationService.collectionCap` assigns remainder paise using previous collections/cancellations; `CodService.collect` verifies that recalculated amount | Persist shared commercial quantity allocations before provider creation; booking, collection, cancellation and return/refund limits must use the same saved amounts |
-| Reverse identity | Returns can claim different remaining units from the same forward package | Give each reverse physical parcel its own return-linked identity and allocations; enforce booking uniqueness per reverse parcel |
-| Return eligibility and UI | `ReturnService.request` and `OrderTracking` require the whole order to be `DELIVERED` | Validate and expose eligible delivered quantities independently of the aggregate order status, including delivered + in-transit/RTO/lost outcomes |
-
-These changes extend the existing domain services and contracts. They are acceptance requirements, not claims that the application already implements them.
-
-### Included
-
-- Domestic single-seller shipments from a registered Kerala pickup location, with package-based provider mappings.
-- Checkout serviceability, delivery estimates and service-level snapshots.
-- Standard delivery with the existing customer-price policy; Express behind approved effective configuration.
-- Assisted/admin-approved courier selection, booking, label/manifest generation and pickup.
-- Tracking, cancellation reconciliation, delivery exceptions, RTO visibility and approved reverse shipments.
-- Provider credentials/token management, durable jobs, audit, security, metrics and mock integration.
-
-### Boundaries
-
-Do not replace the payment, GST, inventory, cancellation, COD or refund domains. Do not introduce a second backend, microservice, message broker or duplicate admin console. International shipping, automatic NDR decisions, multi-warehouse optimization, exchanges and fully automatic booking are later extensions. Rejected-return disposal remains a separate existing gap.
+Checkout courier comparison, Standard/Express selection, multiple warehouses, merging separate customer orders, automatic courier purchasing, exchanges and automatic NDR decisions are later extensions. Preserve the saved customer shipping-price policy; checkout carrier pricing is not a prerequisite.
 
 ## 3. Decisions and invariants
 
 | Decision | Required behavior |
 |---|---|
-| Provider abstraction | Shiprocket-specific DTOs/authentication stay inside the shipping integration adapter |
-| PostgreSQL authority | Persist booking intent, jobs, references, snapshots and inbox events; Redis is optional acceleration |
-| Assisted first | System recommends; Fulfillment/Admin approves booking and pickup |
-| Service-level selection | Customer chooses Standard/Express, not a named courier; provider selection must satisfy the selected option |
-| Existing price policy | Standard remains ₹79 below ₹1,499 original merchandise subtotal, otherwise free, unless a newer effective saved policy supersedes it |
-| Separate costs | Customer shipping revenue, provider quoted cost, booked cost and later actual/billed cost are distinct |
-| Separate state | Booking/AWB/pickup are integration milestones; they do not mean inventory dispatch |
-| Immutable commercial data | Provider costs and settings changes cannot rewrite paid totals, GST or saved delivery promises |
-| Package granularity | One forward package maps to one active forward booking; each return-linked reverse parcel has its own active booking and quantity allocations |
-| Shared commercial allocation | Stable saved quantity shares drive package booking amounts, COD verification, cancellations and return/refund limits; collection order cannot change them |
-| Frozen provider inputs | Commit the parcel snapshot and freeze its inputs at `CREATE_PENDING`; later corrections require resolved cancellation and a replacement generation |
-| Safe external effects | Persist intent before calling provider; ambiguous outcomes require reconciliation before another mutation |
-| Financial authority | Shipping events cannot mark payments collected/captured, issue refunds or restock goods |
+| Durable authority | PostgreSQL stores orders, allocations, snapshots, jobs and tracking; Redis is supporting infrastructure |
+| Creation trigger | Verified prepaid capture or accepted COD commits one idempotent shipping work item; browser success is insufficient |
+| Grouping | One order/address/origin has one active forward master generation with multiple physical packets |
+| Money | Carrier costs and dashboard edits cannot rewrite customer totals, GST, paid amounts or refund entitlement |
+| COD | Represent the saved unpaid master amount once; do not repeat the entire collectible amount on every packet |
+| Packing | Stable quantity identities, per-unit estimates and versioned Admin defaults; never invent product measurements |
+| Frozen evidence | Preserve original snapshots; changes create desired and provider-confirmed revisions |
+| Cancellation cutoff | First confirmed master or child AWB closes normal self-service cancellation; stale local absence is not proof |
+| Dispatch | Proven physical pickup/in-transit invokes the shared exactly-once inventory operation; AWB/label/scheduled pickup alone does not dispatch |
+| Delivery | One AWB does not prove every packet arrived; partial/ambiguous outcomes cannot grant undelivered quantities return eligibility |
+| Returns | Evaluate saved policy and remaining delivered quantities automatically; accepted returns have independent reverse identities |
+| Refunds | Confirm cancellation before initiating prepaid cancellation refunds; return refunds follow receipt and successful inspection |
+| Recovery | Unknown remote outcomes remain pending/review; no duplicate bookings, stock movements, reservation releases or refunds |
 
-The price threshold uses original merchandise subtotal before promotion discount, matching `ADMIN-PROMOTIONS.md`. Retain current inclusive delivery-GST calculation, allocation and paise rounding through the tax service. This HLD does not approve or reinterpret tax treatment. Shiprocket invoice generation is not a substitute for the application's finance-approved goods tax invoice.
+Preserve immutable financial snapshots and deterministic goods/discount/delivery/tax shares per quantity through cancellation and returns. Retain the effective shipping-fee policy and tax service; this design grants no new tax/invoice approval.
 
 ## 4. Component architecture
 
-```mermaid
+~~~mermaid
 flowchart TD
-    C["Customer checkout and tracking"] --> A["Spring Boot application APIs"]
-    U["Existing admin console"] --> A
-    A --> D["Shipping domain and policy services"]
-    D --> P["PostgreSQL: snapshots, bookings, jobs, inbox"]
-    P --> W["Durable shipping worker"]
-    W --> S["Shiprocket adapter"]
-    S --> E["Shiprocket REST APIs"]
-    E --> H["Provider webhook ingress"]
-    H --> P
-    W --> T["Tracking and reconciliation services"]
-    T --> D
-```
+    C[Customer checkout] --> O[Verified payment / accepted COD]
+    O --> P[Automatic packet plan and allocations]
+    P --> J[Durable provider-create job]
+    J --> S[Shiprocket order and MPS]
+    A[Staff in Shiprocket dashboard] --> S
+    S --> W[Verified webhooks]
+    S --> R[Order and tracking API reconciliation]
+    W --> D[Local inbox and shipment projection]
+    R --> D
+    D --> I[Shared inventory transitions]
+    D --> T[Customer tracking]
+    T --> X[Cancellation / policy-based return]
+    X --> J
+~~~
 
-| Component | Responsibility |
-|---|---|
-| ShippingQuoteService | Server cart/package estimate, provider quote retrieval and normalized service options |
-| ShippingPolicyService | Effective policy, price rules, delivery targets, restrictions, courier eligibility and recommendation |
-| Fulfillment application service | Existing allocations and dispatch; orchestrates permitted shipping commands |
-| ShippingProvider / Shiprocket adapter | Authentication, API contracts, response normalization and provider reference lookup |
-| ProviderOperationWorker | Leased durable jobs, retries, recovery, command serialization and result persistence |
-| Tracking inbox/projector | Verified ingress, deduplication, mapping, timeline and legal state updates |
-| ShippingReconciliationService | Unknown outcomes, stale pickup/tracking, duplicate provider records and cost exceptions |
-| Existing payment/inventory/returns services | Retain authority over payment eligibility, stock, return receipt and refunds |
-
-These are logical responsibilities, not a requirement for a class or database table per row. Reuse actual project interfaces, HTTP client, outbox/job engine and typed React API layer.
+Reuse the provider adapter, leased workers, tracking inbox and commerce modules. Add packet planning, MPS mapping and dashboard reconciliation within the modular monolith; no separate backend, broker or worker deployment is required.
 
 ## 5. Customer workflow and checkout integration
 
-1. Customer supplies address and payment method. Backend reads the authoritative cart, variant shipping attributes and effective packaging/policy configuration.
-2. Build a conservative package plan, including packaging tare weight. Do not add item dimensions together as a packing algorithm. Use approved box presets and a documented fitting rule; reject missing/oversized measurements with a useful message rather than inventing a 0.5 kg package.
-3. Query serviceability with pickup/delivery pincodes, kg/cm measurements, prepaid/COD flag and declared value where applicable.
-4. Normalize eligible courier offers. Exclude blocked services and enforce payment, weight/dimensions, product restrictions and mode eligibility. Missing cost components or ETA must remain explicitly unknown.
-5. Build service options. Standard uses the saved customer fee policy. Express is shown only when a configured surcharge/price rule and a supported estimate exist; this HLD does not invent an Express fee. Keep Express disabled until that policy is saved and approved.
-6. Customer selects a service level once. Requote on cart, address, payment method, coupon or shipping-choice changes.
-7. Extend the implemented `POST /api/v1/checkout/quote` and checkout review-hash contract with a durable shipping quote reference. `POST /api/v1/checkout` remains the documented placement flow; do not introduce a competing order placement endpoint merely because the older general API blueprint shows `/orders`.
-8. Snapshot service code, customer fee, effective policy revision, origin/address, package plan, quote timestamp/expiry and delivery range on checkout/order. Recalculate authoritative financials and validate the shipping quote before any order/reservation writes. Do not hold stock row locks while calling Shiprocket: obtain a bounded fresh-enough quote first, then validate its bound inputs/version in the final transaction.
-9. Verified payment capture or existing accepted COD policy emits an eligible-for-fulfillment event. Browser payment success is insufficient.
+1. Existing checkout validates customer/address, stock, financial quote, approved tax data and saved policy.
+2. Place the local order and reserve quantities under existing transaction/idempotency rules. Unpaid online orders do not create live shipping orders.
+3. Verified capture, including webhook/reconciliation recovery, or accepted COD commits the shipping work item once. Repeated payment events cannot create another master.
+4. The worker plans packets and creates the provider order after commit. The customer sees order confirmation and shipment preparation.
+5. Missing shipping measurements/configuration keep the confirmed order and reservations and alert Admin. Unpaid-payment expiry remains a separate rule.
+6. Store Shiprocket order/shipment IDs; the customer order number remains unchanged across provider generations.
+7. Staff ship through Shiprocket; the backend discovers AWBs and progress and serves the local tracking timeline.
 
-The quote is bound to customer/session, cart fingerprint, destination, pickup, package plan, payment method, promotion and policy revisions. Default suggested quote lifetime is 10 minutes (configurable design value, not a Shiprocket guarantee). Use the saved checkout result for same-key replay after cart clearing. A shipping change is part of the request fingerprint.
+Provider outages do not roll back confirmed orders or automatically refund them. Retry safe operations and alert on aging failures. Do not fabricate serviceability or delivery promises. Checkout Standard/Express and provider-quote review hashes are later, separately enabled extensions.
 
-If Shiprocket is unavailable, do not fabricate serviceability or an ETA. Default to pausing shipping selection with retry; a fallback Standard offer may be enabled only by an explicit approved coverage policy. Existing confirmed orders remain valid and enter a visible shipping queue.
+## 6. Packet planning, weight and dimensions
 
-### Estimate semantics
+### Per-unit planning
 
-Persist the estimate shown to the customer as a range with timezone and assumptions. Combine handling lead time/cutoffs with provider date semantics without double-adding transit time if the provider already returns a full delivery date. At booking, compare the provider estimate to the remaining original delivery window, not a new window starting from packing. Customer-facing text says estimated delivery, not guaranteed delivery unless a separately supported service provides that guarantee.
+Read variant weight/dimensions and versioned packaging configuration. Create one packet estimate for every purchased unit. Select a standard box using a documented deterministic fit rule, allowed rotations, usable internal dimensions, padding clearance, capacity limits and stable tie breaking. Save chosen box, original inputs, units, configuration revision and result.
 
-## 6. Package preparation, provider creation and booking
+Use outer box dimensions for shipping. Product dimensions are not parcel dimensions; adding all product lengths/widths/heights is not an MPS packing algorithm. Retain each packet's measurements and translate combined MPS fields only according to the verified provider contract.
 
-### Package mapping resolves the order-versus-shipment mismatch
+### Packaging weight precedence
 
-The application supports multiple packages per order; the adhoc API supplies provider order/shipment identifiers per creation. Use a stable merchant shipping reference per local package/booking generation, within documented field limits. The customer order number remains a separate link. A provider booking can therefore contain a subset of the customer's lines.
+1. A product packaging-weight override represents complete per-unit tare; do not add the same allowances twice.
+2. Otherwise use the selected box's measured empty weight plus configured tape/padding allowances.
+3. If measured weight is unset, estimate from box surface area, material grams per square metre, construction allowance and tape/padding.
+4. An unset product override falls back to Admin configuration. Missing required product measurements, suitable boxes or fallback inputs instead blocks provider creation and alerts Admin.
 
-After payment/COD acceptance, create a durable shipping work item automatically. Automatically create a provider order only when a complete, stable local package plan exists. If staff must decide the split or dimensions, wait in `PACKAGE_DETAILS_REQUIRED`. This deliberately refines the earlier idea of immediately creating one whole-order Shiprocket record: that would conflict with the implemented split-package model.
+For outer box dimensions L, W and H in metres:
 
-Actual package finalization is the default provider creation trigger for v1. Automatic early provider creation from a validated package plan is an optional later optimization; it must handle package changes before AWB without leaving orphan provider orders.
+~~~text
+surface_area_m2 = 2 * (L*W + L*H + W*H)
+estimated_tare_g = surface_area_m2 * material_g_per_m2 * construction_factor
+                   + tape_padding_allowance_g
+packet_gross_g = product_unit_weight_g + selected_tare_g
+master_actual_weight_g = sum(packet_gross_g for all remaining purchased units)
+~~~
 
-### Operational sequence
+The construction factor estimates seams/flaps for the selected box/material; it is not a universal cardboard formula. All numeric settings are Admin-configurable and require calibration. No production density/factor/allowance is invented here. Use decimal arithmetic, documented rounding and positive bounds; keep grams/cm internally and explicitly convert at the adapter. Carrier volumetric/chargeable weight remains distinct from actual weight.
 
-1. Staff opens existing `/admin/orders/:number` or `/admin/fulfillment`.
-2. Prepare a package through existing shipment allocation logic. Combined active allocations cannot exceed unfulfilled order quantities.
-3. Save actual packed weight/dimensions and mark packaging ready. Validate payment/COD eligibility, destination, allocations and policy.
-4. Under the existing order/package lock, persist the package's commercial allocation references, immutable parcel snapshot and payload fingerprint; freeze its inputs, enter `CREATE_PENDING` and commit the provider-create operation and outbox/job record together. Worker sends that snapshot to Shiprocket and saves returned provider order/shipment IDs without holding the preparation transaction open.
-5. Refresh quotes for that same frozen package revision. Recommend the cheapest eligible offer satisfying the original customer service level and remaining estimate. Stable tie break: configured preference, then courier ID. Shiprocket recommendation is advisory and cannot bypass store constraints.
-6. Staff chooses/approves an offer. Require a reason for manual override or cost-tolerance exception. Enqueue AWB assignment with selected offer snapshot and current aggregate version.
-7. Generate shipping label after confirmed AWB; request pickup only when staff confirms parcel readiness. Generate manifest when its provider prerequisites are met. A success HTTP code alone does not establish a completed booking—validate documented response/result fields.
-8. Staff hands the parcel to the courier and uses the existing explicit dispatch command. Shipment state, reserved stock consumption, movement, history, audit and outbox commit together exactly once.
-9. Tracking continues asynchronously. Pickup/AWB creation alone never triggers dispatch or stock consumption.
+### Missing data and correction
 
-Before `CREATE_PENDING`, measurements/allocations may change under version checks and must invalidate affected quotes. From the committed create intent onward, freeze dimensions, weight, item quantities, address/origin, declared commercial values and COD amount, including the interval before AWB assignment. An AWB command must match the confirmed provider order's frozen payload fingerprint and the selected quote's package revision.
+Persist an actionable Admin alert: **Not created in Shiprocket — product measurements missing**, naming SKUs, quantities and missing fields. Use equivalent explicit reasons for missing configuration, unsuitable boxes and unsupported MPS mapping. Keep the customer order confirmed, do not claim provider creation or cancel/refund automatically, and retain resumable work. Correction and retry must not duplicate creation.
 
-For v1, a correction after create intent uses coordinated cancellation and replacement, with a new booking generation and merchant reference. Resolve any pending/unknown create first; proceed only after proving that no remote order exists or that its cancellation completed and no handover occurred. Retain old snapshots/history, then save the corrected snapshot and run the replacement through the same create → fresh quote → AWB flow. If repacking changes package allocations, transfer their ownership through the existing package cancellation/preparation workflow only after that resolution. Do not modify a created remote order merely by refreshing quotes. In-place provider order updates are a later explicit contract extension.
+Staff may correct final measurements in Shiprocket before booking. Save provider-observed values alongside the original estimate with timestamps/history; do not change customer charges. Material discrepancies or invalid packet counts enter review. Small estimation variance is expected, but no arbitrary variance is declared free from carrier billing consequences.
 
-If no eligible service remains, show `ADMIN_REVIEW_REQUIRED`, keep the customer charge unchanged and resolve the promised service through support. Do not silently downgrade or collect an extra amount.
+### MPS contract gate
 
-### Money mapping for split packages and COD
+The owner confirms account MPS enablement. Before enabling this mode, prove the exact API representation for master creation, packet counts/measurements, labels, child references and total COD. Ordinary adhoc creation or an undocumented package-count field does not prove MPS support. Unsupported mapping alerts Admin; do not silently create independent AWBs or represent loose packets as an ordinary single parcel.
 
-Before the first provider-create intent, materialize versioned, deterministic commercial shares from the immutable order-line quantities and goods/discount/delivery/tax snapshots under the existing order lock. Give shares stable quantity identities, such as unit ordinals or equivalent nonoverlapping quantity partitions; a physical table row per unit is not required. Assign remainder paise by that stable identity. Persist each package's share references, component amounts and payable/COD amount. Provider item prices/subtotal/discount/tax fields must reconcile to the provider's documented semantics; do not send a GST-inclusive line price and add the same tax again. Verify this mapping with prepaid, COD, discounted and mixed-tax fixtures.
+## 7. State model and dispatch
 
-For each original order line, preserve quantity and every monetary component as: original snapshot = unallocated shares + shares owned by current forward packages + customer-cancelled shares. Dispatched/delivered/RTO/lost packages retain their share ownership; cancelled local packages and historical booking generations are not counted again. If all quantities are fulfilled without customer cancellation, the package shares sum to the order snapshot. A partial cancellation retains its own saved share instead of adding its value to the remaining packages. Booking replacements reuse existing shares; returns and reverse bookings reference them without creating new forward entitlement.
+These are proposed logical states, not implemented enum or migration claims:
 
-COD amount is the saved unpaid collectible allocation for that package, not the entire order amount repeated on every split package. Adapt `CommercialAllocationService`, `CodService` and their cancellation/return callers to consume those shared allocations. Collection verification must compare evidence against the saved package amount regardless of delivery/collection order; it must not recalculate remainder paise from earlier collections. Example: two packages allocated ₹100.00 and ₹100.01 must each verify successfully in either collection order. Preserve existing collection evidence, approval and manual payout controls; delivery does not prove remittance.
-
-Order-item cancellation selects unshipped shares, resolves affected provider bookings, then moves only the cancelled quantities/value to the cancellation allocation and invokes existing reservation-release/refund logic. Unaffected shares released for repacking become unallocated. Cancellation refund limits reference the selected cancelled shares; return-related refund limits reference the original delivered shares. Prevent overlapping active claims and bound refunds by eligible captured or verified collected funds. Refunds are financial adjustments and do not rewrite original commercial shares or make returned units available for forward allocation.
-
-Backfill existing package/collection/cancellation history only when its allocations can be reconciled conclusively without rewriting historical snapshots or financial evidence; otherwise surface review and block affected booking. Enable split COD only after both the shared local allocation contract and the provider/account representation are proven. Until then, require a supported single-package COD plan or explicit review; never fall back to collection-order allocation.
-
-During rollout, keep integrated booking disabled until every application instance that can mutate allocation, collection, cancellation or return/refund records honors the shared allocation contract. Expand/contract migrations must preserve existing history; an older writer must not bypass the saved shares after booking is enabled.
-
-## 7. State model
-
-Keep existing fulfillment state and add a separate provider booking lifecycle. Avoid turning every API task into a fulfillment status.
-
-| Dimension | States / meaning |
+| Layer | Required states/evidence |
 |---|---|
-| Existing fulfillment | PREPARED → DISPATCHED → IN_TRANSIT → DELIVERED; legal exception/recovery and prepared cancellation rules retained |
-| Provider booking | NOT_CREATED → CREATE_PENDING → CREATED → AWB_PENDING → AWB_ASSIGNED → CANCEL_PENDING → CANCELLED, with UNKNOWN_OUTCOME / REVIEW where needed |
-| Operation | PENDING → PROCESSING → SUCCEEDED; RETRY_WAIT, UNKNOWN_OUTCOME, FAILED, DEAD_LETTER |
-| Label/pickup milestones | Independent label and pickup operation status/reference; label failure does not reset a successful AWB |
-| Tracking extension | PICKUP_PENDING, PICKED_UP, OUT_FOR_DELIVERY, DELIVERY_EXCEPTION, RTO_INITIATED, RTO_IN_TRANSIT, RTO_DELIVERED, LOST/other supported normalized codes |
+| Sync work | Pending, packaging details required, create pending, created awaiting AWB, unknown outcome, Admin review |
+| Provider milestones | Order/shipment IDs, master/child AWBs, packet mapping, documents/pickup and observed measurements |
+| Fulfillment | Prepared, dispatched, in transit, partially delivered, delivered, exception; aggregate packet quantities |
+| Cancellation | Requested, reconciling, confirmed, rejected due to cutoff, support review; refund state is separate |
+| Reverse | Policy evaluation, accepted, create pending/created, pickup/in transit, partial receipt, inspection, refund pending/completed |
 
-Tracking detail can initially be a richer projection alongside existing shipment state. Add explicit domain RTO/lost terminal states through reviewed transitions where needed; do not map RTO delivered to customer DELIVERED or reopen a completed order through a rank-only status comparison.
+Dashboard mode removes mandatory webapp handover from the normal path. Verified pickup/in-transit evidence resolves account/master/packet identity and invokes the shared idempotent dispatch service for proven quantities. Reservation consumption, stock movement, shipment history, audit and projection commit atomically. Duplicate webhook/poll evidence cannot consume twice. Contradictory cancellation, insufficient stock or unknown scope requires review, not bypass.
 
-| Event | Action |
-|---|---|
-| AWB assigned / pickup scheduled | Record milestone; fulfillment remains PREPARED |
-| Carrier pickup before local dispatch | Record scan, flag handover reconciliation; do not consume inventory directly from webhook |
-| In-transit/delivered after dispatch | Apply legal tracking transition and package delivery timestamp |
-| Delivered before dispatch recorded | Retain evidence, flag missing local dispatch; reconcile through the same exactly-once dispatch command before applying downstream projection |
-| Duplicate/older scan | Keep deduplicated history or ignored outcome; no state regression |
-| Unknown provider status | Persist safe raw code, alert mapping review; no guessed terminal transition |
-| RTO completed | Record seller-return arrival pending warehouse receipt/inspection; no automatic refund or restock |
+Apply master scans to all packets only when verified provider semantics establish complete scope; otherwise require packet evidence or audited staff confirmation. This explicitly changes the current projector, which reviews missing local dispatch rather than automatically dispatching.
 
-Order fulfillment status is derived from package quantities, not whichever webhook arrived last. Extend aggregate calculations when adding RTO/lost states: handed-over quantities remain dispatched and unavailable for new allocation, and an exception must not regress the order to `CONFIRMED`. `DELIVERED` requires all noncancelled quantities to be customer-delivered. Expose delivered, in-flight, RTO and lost quantities/outcomes for mixed cases without changing payment state or creating stock movements.
-
-Return eligibility is determined per owned delivered shipment/item allocation using its actual delivery timestamp, saved return policy/window and remaining unclaimed quantity, independently of the aggregate order status. Replace the whole-order `DELIVERED` gates in `ReturnService.request` and customer `OrderTracking`; update authoritative returnable-quantity/allowed-action projections and revalidate the requested allocations under the order lock. A delivered parcel remains eligible while another is in transit, RTO or lost. Preserve distinct windows for deliveries on different dates; unreceived/RTO/lost units never become customer-returnable through an aggregate status change.
+Customers retain one master reference. Some confirmed deliveries produce **Partially delivered** and an Admin alert. Master delivered proves whole-order delivery only with verified complete-shipment semantics. Ambiguous receipt cannot mark every item delivered or start all return windows. RTO/lost remain exceptions; reverse delivered means arrival at the seller.
 
 ## 8. Data model changes
 
-Logical additions; reuse equivalent tables/columns from the application. Follow documented migrations through V28 with the next available version, never assume V29 is unused.
+Use additive migrations after the actual current schema; V29–V31 already exist. Reuse existing records where semantics fit:
 
-| Record | Main fields / relationships |
+| Record | Required additions |
 |---|---|
-| Existing effective shipping policy | service enablement, customer price rules, origin, handling/cutoff, courier restrictions, cost limits, approval mode, effective date, revision |
-| Shipping quote | owner/cart hash, destination/origin hash, package plan, payment method, currency, policy revision, expiry, provider result freshness |
-| Quote offer | quote ID, courier/service ID, mode, ETA/date, weight basis, freight/COD/tax/other components with inclusion flags, normalized total, eligibility |
-| Order shipping snapshot | service level, fee/GST references, customer estimate, policy revision, quote reference; preserve existing totals |
-| Commercial allocation / package snapshot | order/item FK, stable quantity-share identity, allocation algorithm version, original component/payable amounts, unallocated/package-owned/customer-cancelled disposition, package ownership and version; collection/cancellation/return references |
-| Reverse parcel | approved return FK, its own parcel ID, version, actual measurements, immutable pickup/destination and commercial snapshot |
-| Reverse parcel item allocation | reverse parcel FK, original return/shipment/item/share references and positive quantities; supports a return spanning original packages and multiple reverse parcels |
-| Provider booking | forward shipment FK or reverse parcel FK according to direction, provider/account/environment, generation, merchant reference, frozen payload fingerprint/snapshot reference, provider order/shipment IDs, courier, AWB, booking state, estimated/booked/actual cost, version |
-| Provider operation | booking and forward shipment/reverse parcel reference, command, key/fingerprint, immutable payload reference, attempts, lease owner/token/expiry, next attempt, result, safe failure code |
-| Webhook inbox | provider/account, dedupe key, payload hash, received/event timestamps, verification result, process state, mapped booking, safe payload retention reference |
-| Tracking history | booking/direction FK, provider raw/normalized status, event time, location, source, dedupe key, applied/ignored reason |
-| Document metadata | booking FK, label/manifest type, generation status, private object key or expiring provider URL metadata, checksum where available |
+| Packaging configuration | Box internal/outer dimensions, capacity, measured tare, material density, allowances/defaults, effective revision and validation |
+| Product shipping data | Unit weight/dimensions, optional complete tare override, version |
+| Master fulfillment | Order/address/origin, saved workflow mode, account/environment, generation and active booking/master reference |
+| Packet plan/allocation | Stable unit/share identity, box, frozen estimate, provider child IDs/AWBs if available, quantities and evidence |
+| Commercial shares | Original goods/discount/delivery/tax/payable components and nonoverlapping active/cancelled/returned claims |
+| Booking and operation | Forward master or reverse group, immutable payload revisions, merchant reference, lease/version, desired update and safe result |
+| Dashboard observation | Confirmed master/child references, measurements, amount checks, status/freshness and cutoff evidence |
+| Cancellation/reverse | Requested quantities, policy/provider results, forward links, independent reverse generation, receipt/QC/refund links |
+| Alerts/inbox | Durable reason/age, verified source, dedupe identity, master/packet scope and review outcome |
 
-Constraints: unique provider/account/environment merchant reference; unique provider IDs within appropriate provider scope; exactly one parcel reference matching booking direction; one active forward booking per local forward shipment; one active reverse booking per reverse parcel; unique operation key scoped to command; unique dedupe keys; positive dimensions/weight; positive parcel item quantities and nonnegative balances; money in INR with BigDecimal/numeric. Enforce exclusive ownership and conservation of commercial shares, and serialize reverse allocations against the approved return's remaining quantities. Pending/unknown bookings retain their uniqueness/allocation protection. A cancelled booking remains historical and can be linked to its replacement; do not impose reverse uniqueness on the original forward shipment.
+Enforce one active forward master generation per integrated order; unique account/mode provider references; idempotency/version constraints; positive packet allocations; stable share ownership; bounded COD/refund claims. Different returns against one forward order need independent reverse identities. Cancelled generations cannot own active quantities twice.
 
-Index queue status + next-attempt/lease, booking provider IDs/AWB, order/shipment lookup and tracking time. Reuse shipment items/history, audit and idempotency records. Durable job payloads should reference immutable DB snapshots instead of duplicating full customer addresses into every outbox row. Apply approved retention to inbox payloads/documents.
+Pending/unknown operations retain allocation protection. Preserve original estimates and financial history. Backfill only conclusive mappings; historical records keep their saved assisted mode otherwise. Upgrade/disable older writers that would bypass new allocation and cutoff rules before rollout.
 
 ## 9. Application API design
 
-Existing routes below come from implementation notes; additions are proposed contracts, not implemented endpoints. Keep session/CSRF, ownership, error format and bounded pagination conventions.
+Existing routes remain authoritative; extensions below are proposed until implemented:
 
-| API | Status / behavior |
+| Surface | Required behavior |
 |---|---|
-| POST `/api/v1/checkout/quote` | Extend implemented financial quote with validated delivery choice and shipping quote reference |
-| POST `/api/v1/checkout` | Extend implemented placement; validate quote binding, preserve replay after cart clearing |
-| POST `/api/v1/checkout/shipping-options` | Proposed shipping-only quote query, matching general blueprint; no stock/order mutation |
-| GET `/api/v1/admin/operations/orders[/{number}]` | Extend existing projections with safe booking/job details and allowed actions |
-| POST `/api/v1/admin/operations/shipments` | Reuse existing package allocation endpoint |
-| POST `/api/v1/admin/operations/shipments/{id}/commands` | Reuse for READY_TO_SHIP, CREATE_PROVIDER_ORDER, BOOK_COURIER, GENERATE_LABEL, REQUEST_PICKUP, CANCEL_BOOKING, RECONCILE alongside existing commands; verify actual command enum before additions |
-| POST `/api/v1/admin/operations/shipments/{id}/courier-quotes` | Proposed nonbooking quote refresh; actual measurements and eligibility checked server-side |
-| POST `/api/v1/admin/operations/returns/{id}/parcels` | Proposed reverse parcel preparation from approved return quantities; requires ownership of return allocations, measurements, version and idempotency |
-| POST `/api/v1/admin/operations/returns/{id}/parcels/{parcelId}/commands` | Proposed reverse create/book/pickup/cancel/reconcile operations; same durable operation contract and frozen-input rules |
-| Existing return request/decision/receipt/inspection APIs | Extend eligibility and projections for mixed outcomes; receipt/inspection identify parcel/item quantities when a return spans reverse parcels and remain idempotent |
-| GET `/api/v1/admin/operations/shipments/{id}/documents/{documentId}` | Proposed authorized document access; short-lived download or bounded proxy |
-| GET `/api/v1/admin/operations/shipping-jobs/{id}` | Proposed durable operation status lookup |
-| GET `/api/v1/orders/{number}/tracking` | Extend existing owner-only per-package tracking; browser polling reads local data |
-| Existing `/api/v1/admin/settings` family | Extend effective shipping settings using its actual saved revision/update contract |
-| Existing `/api/v1/public/business-policy` | Reflect public delivery/returns terms; no credentials/internal courier margins |
-| POST `/api/v1/logistics/events` | Proposed Shiprocket-specific verified webhook ingress; provider-neutral URL avoids restricted naming |
+| Checkout/payment/COD acceptance | Durable automatic shipping intent; no provider I/O under order/stock locks |
+| Existing customer cancellation API | Individual quantity request, fresh provider eligibility, pending outcome and separate refund status |
+| Owner-only tracking | Master reference, safe packet/quantity evidence, partial delivery, freshness and policy-derived actions |
+| Existing return APIs | Automatic saved-policy acceptance, reverse work and distinct receipt/QC/refund stages |
+| Admin settings/catalog | Versioned box/material defaults and SKU measurements; no secrets |
+| Admin overview/fulfillment | Missing-data/sync alerts, reconcile/retry and support exceptions |
+| Provider-booking/job reads | Master/packet hierarchy, desired revisions and observations without private payloads |
+| POST /api/v1/logistics/events | Existing mandatory token, durable inbox and HTTP 200 acknowledgement |
+| Existing assisted commands | Retain for saved assisted records; no competing webapp AWB/pickup writer for dashboard-managed masters |
 
-Provider-mutating commands require `Idempotency-Key`, current version, reason where appropriate and DTO allowlists. Return 202 with an operation reference for queued effects; replay returns the same operation. Changed body under the same key returns 409. Quote refresh is read-like but uses POST for structured package input and must not book anything.
-
-Use 400 validation, 401/403 authentication/authorization, 404 absent/nonowned resource as project policy dictates, 409 stale/illegal transition or expired quote, 429 rate limit and safe 5xx errors for synchronous integration failure. Async failures appear as persisted job results. Include code/detail/traceId without raw provider bodies or secrets.
+Retain browser session/CSRF, ownership/roles, versions and durable idempotency. Queue external effects with HTTP 202 as appropriate; same-key retries return the same operation, changed input/stale versions conflict. Return safe code/detail/trace information. Do not add a second checkout or require customer knowledge of provider IDs.
 
 ## 10. Shiprocket API boundary and credentials
 
-Base: `https://apiv2.shiprocket.in/v1/external`. The official reference is the payload authority. Validate account-specific examples before enabling real mutations.
+Production base: https://apiv2.shiprocket.in/v1/external. Verify current reference and account fixtures:
 
-| Capability | Provider endpoint | Input/output boundary |
-|---|---|---|
-| Authentication | POST `/auth/login` | API-user email/password → bearer token |
-| Availability/quotes | GET `/courier/serviceability/` | Pincodes, package, COD/prepaid or provider order reference → eligible services/rates/estimates |
-| Forward creation | POST `/orders/create/adhoc` | Package commercial/address snapshot → provider order/shipment IDs |
-| Courier booking | POST `/courier/assign/awb` | Provider shipment ID + courier ID → AWB/result |
-| Label | POST `/courier/generate/label` | Provider shipment IDs → document URL/result |
-| Pickup | POST `/courier/generate/pickup` | Provider shipment IDs → pickup result/reference |
-| Manifest | POST `/manifests/generate` | Eligible booked shipments → manifest result |
-| Tracking | GET `/courier/track/awb/{awb}` or `/courier/track/shipment/{id}` | Provider state/history |
-| Cancel | POST `/orders/cancel` | Provider order IDs; confirm remote outcome before local release |
-| Reverse creation | POST `/orders/create/return` | Approved return allocation and reversed pickup/destination → reverse booking |
+| Capability | Boundary |
+|---|---|
+| Authentication | POST /auth/login; server-side API-user credentials and cached token |
+| Forward creation | Existing POST /orders/create/adhoc is the ordinary-order boundary; prove exact MPS representation |
+| Dashboard discovery | GET /orders/show/{id} and verified shipment reads; exact merchant-reference lookup for uncertain creates |
+| Tracking | GET /courier/track/awb/{awb} or /courier/track/shipment/{id} |
+| Pre-AWB update | POST /orders/update/adhoc; verify MPS item, amount and packet changes |
+| Cancellation | POST /orders/cancel and supported shipment cancellation where relevant; read-confirm outcomes |
+| Reverse creation | POST /orders/create/return; prove reverse/MPS packet/account mapping |
+| AWB/documents/pickup | Staff execute in Shiprocket for this mode; existing adapter mutations remain for compatible assisted records |
 
-Do not assume a quote field is a fully inclusive payable total. Normalize documented cost components and retain raw field names/inclusion semantics in the adapter. Estimated booking cost can change after carrier weight assessment; later billed adjustments become financial reconciliation items, not edits to the customer's order.
-
-Configuration: API email/password, base URL, registered pickup location/pincode, webhook secret, provider mode, timeouts, retry budgets and cost/quote thresholds. Inject secrets through environment/secret manager. No credential editor that returns secret values to browsers.
-
-Use the dedicated API user, cache the generated token server-side and renew on documented expiry/authentication failure (about ten days per provider docs). Serialize regeneration to avoid login storms. Retry authentication at most once per request path; a 403 is not automatically an expired token. Do not assume generating a new token revokes older ones.
+Serialize token renewal, bound calls/response sizes, refresh auth at most once after a verified auth failure and never blindly replay uncertain mutations. Inject secrets server-side. Mode/account switches cannot reinterpret saved jobs. Save master/child/provider IDs separately from customer/merchant references. Unsupported fields or MPS/reverse semantics are acceptance blockers, not guesses.
 
 ## 11. Webhooks and reconciliation
 
-The development `/api/v1/shipping/webhooks/carrier` contract uses custom HMAC `X-Carrier-Signature`; it cannot be reused unchanged for Shiprocket. Official Shiprocket webhook guidance describes a configured security token sent as `x-api-key`, HTTP POST JSON and HTTP 200 acknowledgement, and restricts certain keywords in the callback URL. Configure the security token as mandatory for this application and verify actual delivery in the account before live rollout. It is a shared header secret, not a cryptographic body signature.
+Use verified webhooks for timely tracking and scheduled API reads for dashboard discovery, missed updates and uncertain-operation recovery. Customer refreshes read local data, not Shiprocket.
 
-Ingress flow:
+Require TLS, bounded JSON, constant-time x-api-key verification and the exact existing CSRF exemption. Persist minimal verified evidence before HTTP 200; reject invalid authentication/input and do not acknowledge failed database writes. Process asynchronously. Deduplicate scans across callbacks/polls by account, mode, direction, master/packet scope, status and event time. Preserve chronology and review unknown mappings.
 
-1. TLS, bounded body, content-type validation, rate limit and constant-time secret comparison. Exempt only this provider endpoint from browser CSRF; retain CSRF everywhere else.
-2. Parse minimally; resolve account/environment and provider IDs/AWB against durable bookings. Never accept a caller-supplied local shipment ID as authoritative.
-3. Persist verified receipt, then return HTTP 200 for accepted/duplicate callbacks. Authentication/invalid body failures are rejected; do not acknowledge a receipt as safely queued if the DB write failed.
-4. Process asynchronously through a deduplicated inbox and domain transition checks.
+Reconcile created masters even while AWB is null: the current AWB-only polling selection is insufficient. Discover dashboard-assigned master/child AWBs, courier, pickup, packet details, measurements and booking state from known provider orders. Webhooks are not assumed to report every AWB assignment. Resolve unknown AWBs through verified account-scoped references, never postcode/customer guesses.
 
-The sample webhook does not promise a globally unique event ID. Derive an account/booking/direction + status + event-time + normalized-scan hash when necessary. Deduplicate transport bodies separately from scan events: callbacks may repeat a history array. Preserve unknown booking events for bounded reconciliation rather than attaching them to a different order. Parse timestamp formats/timezone explicitly; quarantine ambiguous values without overwriting event chronology.
-
-Polling is a backstop, not one provider call per customer refresh. Poll active/missing/stale shipments in bounded leased batches, respecting account limits and terminal states. Suggested local targets: process persisted tracking within 60 seconds; reconcile actively moving shipments about every 30 minutes, configurable and adjusted for rate budget. These are proposed application targets, not provider SLAs. Keep the existing 30-second browser refresh against local APIs.
+Use bounded leased batches, configurable backoff and rate budgets. Proposed starting intervals: 2–5 minutes for awaiting-AWB/recent dashboard changes, about 30 minutes for moving-shipment backstop reads. These are application settings, not provider SLAs. Cancellation needs immediate fresh eligibility and outcome reads. Stop normal polling for terminal records while retaining unresolved/exception recovery; expose last-updated time honestly.
 
 ## 12. Durable operations and failure recovery
 
-Claim work in a short DB transaction using leases/row locks; commit before network I/O. Persist provider result and local booking transition in a second transaction. Use command uniqueness plus aggregate version/fencing token to prevent stale worker results from overwriting newer generations. A lease expiry alone cannot prove a previous external request did not complete.
+Persist intent with the triggering order/payment/return transition. Claim a lease briefly, call outside the transaction, then apply results under lease/version fences. One unresolved mutation per active generation; lease expiry does not prove provider failure.
 
 | Failure | Recovery |
 |---|---|
-| Create request timeout / crash after remote success | Mark UNKNOWN_OUTCOME. Search provider records by stable merchant reference using a verified lookup/list contract; attach only one exact matching result. If lookup is inconclusive, manual review; do not blindly recreate |
-| AWB timeout | Fetch provider shipment state; reuse confirmed AWB. Do not assign another courier until previous outcome is known |
-| Label failure | Retry document operation only; retain successful booking |
-| Pickup timeout | Reconcile existing pickup before repeating request |
-| Concurrent book/cancel/dispatch | Lock/version booking and package; serialize effectful operations. Cancellation cannot free allocations while booking outcome remains unknown |
-| Correction after create intent, including before AWB | Reject direct edits; resolve create/cancellation outcome, preserve commercial share ownership and start a replacement generation with a corrected frozen snapshot and fresh quotes |
-| Wallet/permissions/validation failure | Permanent/action-required result; fix account or input, then explicit safe retry |
-| 429/transient read failure | Bounded exponential backoff, jitter and Retry-After support |
-| Provider 5xx on mutation | Treat outcome as potentially ambiguous; reconcile before retry |
-| Worker restart | Resume persisted operations; unknown outcomes stay blocked until resolved |
-| Redis unavailable | Retain durable order/job integrity; use bounded safe DB coordination or fail affected optional features |
+| Missing data/configuration | Confirmed order retained; actionable alert; safe resume after correction |
+| Create timeout/crash after success | Exact reference lookup; attach one confirmed match; unknown/review if inconclusive |
+| Unsupported MPS | Block and alert; no silent single-parcel or independent-AWB fallback |
+| AWB assigned during cancellation | Reconcile; close normal cancellation or review; no false success/refund |
+| Update timeout/mismatched read-back | Keep desired revision pending; confirm items, packets and amounts |
+| Pre-AWB replacement | Confirm old cancellation/no shipping exposure, then create a new generation using remaining shares |
+| Dashboard commercial edits | Flag mismatch; do not overwrite original finances or infer cancellation from amount alone |
+| 429/read transient failure | Bounded backoff/jitter and Retry-After, with stale indicators |
+| Mutation timeout/5xx | Reconcile before retry; exhausted attempts cannot establish success/failure |
+| Duplicate transport/financial event | Existing idempotent transitions/ledger prevent repeated dispatch, release, restock or refund |
+| Restart/Redis failure | PostgreSQL retains durable intent and allocations |
 
-Initial timeout proposal: connect 3 seconds, read 15 seconds, overall call 20 seconds, tuned per endpoint after acceptance tests. Do not blindly apply generic HTTP retry interceptors to provider mutations. Unknown outcome must never be converted into success or terminal failure solely because attempts were exhausted.
+Reuse bounded client timeouts; do not add generic mutation retries. Audit requested changes, provider observations and accepted/rejected outcomes with safe references.
 
 ## 13. Cancellation, RTO and reverse shipping
 
-V23 cancellation/COD support is already recorded in the latest tracker; reuse those services. Some older Stage 2 prose still lists customer cancellation as future work. The latest tracker takes precedence; verify actual code before changing that flow.
+### Individual-item cancellation before AWB
 
-- Local unbooked prepared package cancellation frees its allocation, not the order reservation/payment.
-- Once provider creation/AWB/pickup exists, request cancellation through durable provider coordination. Preserve allocations while cancellation/handover is uncertain; do not permit a competing replacement booking.
-- Customer order cancellation is a separate saga: freeze further shipment commands, resolve affected provider operations, then invoke existing reservation release/refund logic within its accepted rules. Confirm provider eligibility; HTTP acceptance alone may not prove cancellation after pickup.
-- After handover, use return/RTO workflows; do not mark the package locally cancelled while the courier still carries it.
-- Prepare each reverse physical parcel against one approved return, with positive quantities linked to its original delivered shipment/item/share allocations. One return may span original forward packages and multiple reverse parcels; different returns may reference different units from the same forward package. Their reverse parcel IDs and merchant references are independent. Serialize allocations so pending, active and received reverse parcels cannot claim more than the approved return quantities. Keep original forward links for traceability, without using them as reverse booking identity.
-- Create reverse bookings with buyer pickup and seller destination using the same frozen-input and durable cancellation/replacement rules. Link provider IDs/AWB to the reverse parcel and return; keep forward and reverse timelines distinct. Reverse booking cancellation does not itself cancel the approved return or release its commercial claim. Preserve existing customer cancellation eligibility; any later approved-return cancellation needs coordinated handling of its parcels and financial claims.
-- Reverse delivery becomes receipt evidence. Explicit, idempotent warehouse receipt records actual parcel/item quantities and quarantines only those received. For multiple parcels or shortages, do not mark the entire return received or inspect/restock unreceived units. Aggregate return progress and refundable limits respect outstanding quantities and existing inspection/approval rules. Failed QC continues to block refund as defined by existing policy.
-- RTO completion does not independently establish a refund entitlement or restock. Use controlled warehouse and financial decisions.
+Customers request specific remaining quantities until courier booking begins. Check current provider state, not stale local AWB absence. First confirmed master or child AWB closes normal self-service cancellation. Later exceptions are Support/Admin work; normal customer actions do not promise booking rebuild. Shipped goods follow the saved return policy; interception/RTO remains exceptional operations work.
 
-Reverse shipping requires its own serviceability/eligibility fixtures and account acceptance; do not assume every forward courier supports reverse pickup.
+Apply this cutoff through a new effective policy saved on future orders. Historical orders retain their original cancellation/return promises; neither migration nor a workflow-mode switch may retroactively shorten them. Customer policy wording and backend allowed actions must use the same saved revision. Existing return windows, exclusions and mandatory-rights disclosures remain unchanged.
+
+1. Lock/version the order and selected shares; persist the request/idempotency and pause competing local creation/update work.
+2. If creation has not started, remove selected quantities from the desired shipment. Resolve in-flight/unknown creation first.
+3. For a confirmed unbooked provider record, use a proven pre-AWB item update and reconcile packet count, weight/dimensions and remaining amount. If MPS updates cannot safely express this, confirm old provider cancellation before creating a replacement generation. Full cancellation needs no replacement.
+4. Read-confirm the result. Dashboard staff are independent writers: local locks cannot prevent concurrent booking. New AWB/uncertain scope remains requested/review or is rejected using confirmed evidence; no success while cancelled units may still ship.
+5. After confirmed removal/cancellation, finalize only selected quantities, release reservation once and initiate the existing prepaid refund. For COD, confirm the reduced saved/provider collectible amount; uncollected COD has no refund.
+
+Preserve original totals and goods/tax/discount/delivery shares; do not move cancelled amounts onto remaining items or invent a new fee policy. Refund initiation and confirmed completion remain distinct. Staff check pending cancellation alerts before AWB assignment and book before sealing/label finalization; this SOP does not eliminate the external race.
+
+### Policy-based returns
+
+Evaluate ownership, saved window/exclusions, proven delivery and unclaimed quantity under the existing order lock. Eligible requests are automatically accepted without discretionary approval and commit a reverse-create job. Ineligible requests show reasons; ambiguous delivery/data enters review.
+
+Each accepted return/reverse generation has independent provider/merchant IDs, allocated quantities and a packet plan. Disjoint returns against the same forward master must not overlap claims. The worker creates the reverse order with buyer pickup and seller destination; staff book reverse transport in Shiprocket. Missing data or unsupported reverse mapping creates an alert without inventing pickup success. Forward/reverse timelines remain separate.
+
+Reverse delivered is transport evidence. Staff record actual receipt into quarantine, inspect and explicitly decide restock. Initiate prepaid return refunds after successful receipt/inspection for eligible quantities only; failed/partial QC cannot refund/restock unreceived or rejected units. COD return refunds require verified collections and the existing controlled payout/approval/reference process; no automatic bank transfer is implied. RTO/lost alone triggers neither refund nor restock.
 
 ## 14. Admin and customer UI
 
-Extend existing React-Bootstrap/TypeScript/SASS components; no redesign or parallel administration shell.
-
-| Existing page | Addition |
+| Surface | Required behavior |
 |---|---|
-| `/admin/fulfillment` | Filters for packaging required, ready, booking pending/unknown, pickup pending, tracking exception and RTO; bounded server pagination |
-| `/admin/orders/:number` | Package cards with actual measurements, selected service promise, customer fee versus provider costs, courier quotes, AWB, documents and safe job references |
-| Existing package detail | Courier comparison, recommendation reason, manual override reason, booking/pickup confirmations, retry/reconcile actions and timeline |
-| `/admin/settings` | Effective shipping service rules, existing price policy, origin, courier restrictions, cost tolerance and ASSISTED mode; revision conflict handling |
-| `/admin` overview | Capability-scoped unresolved shipment counts/links; unavailable data is not shown as zero |
-| `/admin/returns/:id` | Approved reverse parcel preparation, pickup/booking actions, separate tracking and parcel/item receipt progress |
-| Customer checkout | Standard/Express only when available, estimated range and customer shipping charge |
-| Customer tracking | Per-package courier/AWB/scan status and service estimate, including delayed/RTO cases |
-| Customer return request | Server-provided eligible delivered quantities and actions even when the order has in-transit/RTO/lost packages; preserve per-package delivery windows |
+| Customer order/tracking | One master reference, preparation, partial delivery, cancellation pending and distinct refund progress |
+| Customer actions | Individual quantities before fresh AWB cutoff; returns for proven eligible delivered units |
+| Admin overview/fulfillment | Not-created alerts with SKU/field reasons, unknown operations, partial delivery, age, retry/reconcile |
+| Admin settings | Boxes, measured tare, material g/m², construction/padding defaults, effective revision and bounds |
+| Product editor | Shipping measurements/optional complete tare override and readiness validation |
+| Admin order/return | Master/packet identity, estimate vs observation, quantity claims, reverse linkage and support audit |
+| Shiprocket dashboard | Normal forward/reverse courier, label/manifest and pickup operations |
 
-Use backend-returned allowed actions. Disable parcel input edits from `CREATE_PENDING`; show the cancellation/replacement action for corrections and retain unknown-outcome blocking after refresh. Disable pickup until a confirmed AWB and readiness; disallow dispatch without required booking/handover prerequisites in LIVE mode. Keep sandbox workflows visibly marked and isolated. Display submitted/processing operations after refresh, without optimistic success. Preserve unsaved dimensions on conflicts where safe. Use accessible labels, keyboard dialogs, screen-reader status and mobile cards/tables.
+New-mode orders do not require routine webapp preparation, courier comparison, AWB or handover clicks. Saved assisted records retain their compatible actions. Use existing roles, ownership, settings-version checks and privacy projections. Outbox notification intent is not proof of sent email/SMS.
 
-## 15. Authorization, privacy and documents
+## 15. Security, observability and operations
 
-Extend `GET /api/v1/admin/capabilities` with shipping actions following actual project naming. Fulfillment/Admin may prepare/book/pickup/dispatch; Returns/Admin may initiate approved reverse shipping; Support has authorized read-only access; Finance/Reporting retain safe cost/reconciliation projections without delivery addresses. Admin controls effective shipping settings. Refund permissions remain independent.
+Keep browser authentication/CSRF, ownership, scoped staff roles, rate limits and privacy rules. Credentials/private provider document URLs stay server-side; retain bounded trusted-host document handling. Log no secrets or unnecessary addresses.
 
-Customer tracking remains owner-only; do not add unauthenticated tracking merely by knowing an order number. Carrier label PDFs contain PII: authorize staff access, prefer private object storage with short-lived links, and avoid logging provider URLs. If fetching provider documents, enforce trusted host/scheme, public-address resolution/SSRF controls, redirect policy, content type/size limits and bounded timeouts. Do not reuse public catalog-image storage semantics for private labels.
+Monitor job age, missing-data alerts, unknown mutations, awaiting-AWB age, read freshness, webhook lag, mapping errors, partial deliveries and refund reconciliation. Audit configuration/estimate revisions, dashboard observations, cancellation results and warehouse/financial decisions. Reconcile reservations and movements after exceptions. Existing production alert ownership/retention decisions remain required.
 
-Audit actor, command, package/generation, provider refs, safe before/after data, reason and correlation ID. Redact credentials, x-api-key, full addresses and unnecessary raw payloads. Share only shipment-required PII with the provider. Retention/deletion ownership remains an existing release decision.
+## 16. Required verification
 
-## 16. Observability and operational controls
+| Area | Acceptance evidence |
+|---|---|
+| Trigger | Captured prepaid and accepted COD each enqueue once; unpaid online/replayed events cannot create duplicate masters |
+| Packing | Three units produce three estimates; overrides/measured/fallback, fitting, units, bounds and rounding |
+| Missing data | Confirmed order kept, exact Admin alert, safe resume after correction |
+| MPS | Supported creation/count/combined-dimension fields, child labels/IDs, master AWB and account permissions proven |
+| Money | Stable component/share conservation, partial cancellation, COD represented once, no double GST or refund/collection overclaim |
+| Dashboard | AWB-null discovery, portal assignment/pickup/measurement synchronization without webapp booking |
+| Cancellation | Queued/in-flight create, pre-AWB update/replacement, timeouts, concurrent dashboard AWB and cutoff UI |
+| Dispatch/tracking | Duplicate poll/webhook consumes once; scheduled pickup does not; scope, chronology, partial/RTO/unknown evidence |
+| Returns | Automatic saved-policy acceptance, concurrent claims, reverse retry, partial receipt/QC, refund and COD payout |
+| Security/UI | Ownership/revocation/CSRF, safe alerts/documents, one master customer view and unavailable-data handling |
+| Upgrade/regression | Additive schema, historical assisted records, overlapping writers, existing commerce concurrency/replay suites |
 
-Metrics: quote latency/error/no-service rate; booking attempts/results; unknown-outcome age; job backlog/oldest age; retry/dead-letter counts; pickup failures; webhook accepted/rejected/duplicate/unmapped; tracking lag; delivery/RTO exceptions; quoted versus booked/billed cost differences. Avoid order IDs/AWBs as metric labels; retain safe references in restricted logs/traces.
+Historical tracker test counts prove only the prior implementation. This revision claims no new runtime, MPS or live acceptance.
 
-Alerts: sustained auth failure, unknown bookings older than configured threshold, booking/pickup failures, stale inbox/job queues, wallet/account blocks, unmapped states and missed delivery targets. Keep provider outage out of process liveness; surface a shipping integration health indicator.
+## 17. Implementation plan
 
-Runbooks must cover duplicate remote order investigation, wallet recharge, credential rotation, lookup after timeout, pickup failure, carrier handover missing local dispatch, stuck cancellation, RTO receipt, inbox replay and restoring DB after an external booking. After restore, reconcile provider records before reopening mutation workers to prevent duplicate bookings from a rolled-back local database.
-
-## 17. Implementation phases and acceptance
-
-| Phase | Deliverable | Exit evidence |
+| Phase | Work | Completion gate |
 |---|---|---|
-| 0 — Reconcile contracts | Inspect actual app classes/controllers/migrations, package attributes, effective settings and provider account capabilities; map the review deltas in section 2 to existing callers | Confirm the shared commercial allocation contract, creation freeze/replacement flow, reverse parcel identity and backend/UI return gates; no duplicate APIs or rewritten migrations |
-| 1 — Durable foundation | Provider interface, MOCK/LIVE config, token handling, mappings, additive schema for commercial shares/reverse parcels/frozen snapshots, leased worker/inbox | Crash/retry/concurrency tests and secret redaction; allocation/booking uniqueness enforced; historical ambiguity surfaces review; normal profile cannot silently use mock |
-| 2 — Checkout | Package estimate, serviceability, Standard policy, optional configured Express, quote/review hash snapshots | Stale/changed quotes rejected before writes; promotion/GST/replay regressions pass |
-| 3 — Assisted admin | Package-ready → freeze/save commercial shares and create intent → quote → approve AWB → label → pickup; adapt COD/cancellation callers and reuse dispatch | One forward booking per package; pre-AWB edits cannot stale provider data; reversed COD collection order and cancellation/repacking preserve amounts; actual stock consumed once at dispatch |
-| 4 — Tracking and cancellation | Verified provider ingress, local timeline, polling/reconciliation, V23 coordination | Duplicates/out-of-order events, unknown outcomes and cancellation races proven |
-| 5 — Reverse and exceptions | Return-linked reverse parcels/bookings, RTO/lost aggregation, per-allocation customer return eligibility and parcel receipt/inspection | Concurrent disjoint returns from one forward package succeed; mixed delivered + in-transit/RTO/lost backend/UI flows pass; no premature whole-return receipt, duplicate restock or direct refund |
-| 6 — Controlled live acceptance | Account setup, limited operator-approved shipments, label printing, pickup, tracking and recovery | Recorded provider evidence and operations approval; update tracker honestly |
+| 1 — Contracts and allocations | Verify MPS/update/reverse fixtures; master/packet generations and shared commercial quantities; preserve assisted records | No guessed mapping; COD/cancellation/refund conservation and upgrade tests |
+| 2 — Packing and automatic intent | SKU/box/default settings, per-unit planner, Admin alerts, prepaid/COD triggers | Missing data keeps orders; retries/capture/COD create one desired master |
+| 3 — Dashboard synchronization | MPS creation, AWB-null discovery, child mapping, observations and local tracking | Dashboard shipping reflected; unknown-create recovery proven |
+| 4 — Dispatch and cancellation | Verified transport invokes shared dispatch; fresh pre-AWB update/replacement and cutoff | Inventory, amount adjustment, dashboard-race and duplicate-refund tests |
+| 5 — Returns/exceptions | Policy acceptance, reverse creation/sync, packet-aware delivery, receipt/QC/refunds | No overclaims, premature delivery, double restock/refund |
+| 6 — Acceptance/rollout | Operator-approved account exercises, monitoring/runbook and new-mode activation | Complete lifecycle evidence and upgraded/disabled incompatible writers |
 
-All developer/CI workflows default to deterministic MOCK. Authentication success is evidence only for credentials, not shipping readiness. Provider docs state valid API calls affect real account data; do not assume a production-like Shiprocket sandbox exists. Any real shipment exercise must be explicit operator-controlled work with known charges and cancellation implications.
+Gate automatic live creation until required synchronization, dispatch, cancellation and financial invariants are deployed together. LIVE alone must not reinterpret existing records. Save a workflow-mode/configuration revision; its exact property name is an implementation detail, not an environment variable already supported.
 
-### Required test matrix
+## 18. Setup, approved decisions and release gates
 
-- Quote: no route, COD excluded, missing ETA/cost, measurement units, volumetric/chargeable weight handling, price expiry, cart/coupon/address change and threshold equality at ₹1,499.
-- Commercial: Standard fee/free rule, Express approval/price, inclusive GST and discount snapshots; deterministic quantity-share conservation with unallocated/cancelled balances; split COD with a remainder paise collected in either order; partial cancellation before remaining booking; cancellation/repacking and replacement generations preserve shares; return/refund limits use original shares and verified funds; ambiguous historical allocations block booking for review.
-- Commands: duplicate jobs/clicks, changed input under same key, concurrent book/cancel/dispatch, timeout after remote success, worker lease expiry and stale worker completion; measurement/item/address/COD edits rejected during create pending/created/unknown and after AWB; confirmed cancellation/replacement uses a new merchant reference, corrected snapshot and fresh matching quote.
-- Inventory: booking/pickup changes no stock; repeated split dispatch consumes only its allocation once; cancellation does not free handed-over stock.
-- Tracking: invalid/missing secret, repeated scan arrays, unknown booking/code, timestamp parsing, delayed events, delivered-before-dispatch, forward/reverse AWB separation and RTO terminal behavior.
-- Returns and exceptions: delivered + in-transit/RTO/lost order outcomes permit only eligible delivered quantities; distinct delivery dates preserve independent windows; excess/concurrent claims rejected; two disjoint approved returns from one forward package obtain independent reverse bookings; a return spanning original packages/multiple reverse parcels preserves quantities; reverse cancellation retains the return claim; partial/duplicate receipt and inspection cannot restock unreceived units or restock twice.
-- Permissions: customer IDOR, staff capability revocation, Support read-only, Finance address denial, CSRF and safe label access.
-- UI: checkout selection/recovery, admin prepare/book/pickup/dispatch, frozen-input correction/replacement, persisted job reload, comparison/conflicts, reverse parcel preparation/receipt, eligible customer return actions on mixed-outcome orders, mobile/accessibility and request-failure states.
-- Migrations: clean install and upgrade from current actual schema; old/new application overlap with integrated booking disabled until all relevant writers honor shared allocations; no mutation of historical commercial snapshots.
-- Regression: existing cancellation/COD, return inspection/refund, promotion, checkout stock race and idempotent replay suites.
+The owner reports MPS enablement and webhook registration. Preserve dedicated API-user credentials, registered pickup, mandatory callback token, account identity and existing worker settings. Current environment variables enable the assisted foundation; they do not implement this redesign.
 
-Run PostgreSQL integration and UI/build checks appropriate to the actual project. Existing documented test counts are historical evidence, not targets to copy or proof that this design is implemented.
+Approved: prepaid + COD; separately packed purchased units under one master; measured tare before calculated fallback; Admin alerts for missing data; webhooks plus reconciliation; individual cancellation before AWB; policy-based returns and automatic reverse creation; cancellation refunds after confirmation and return refunds after receipt/successful inspection. Numeric packing settings may be entered later; absent required inputs block provider creation visibly.
 
-## 18. Setup, decisions and release gates
-
-### Account/application setup
-
-Dedicated Shiprocket API-user permissions; KYC/account activation as required; registered pickup address and matching location name/pincode; sufficient wallet; enabled couriers and COD eligibility; backend secret injection; public HTTPS callback and shared security token; accurate SKU weights, packaging presets and parcel limits; production document storage and operational owner.
-
-### Decisions before dependent implementation/live activation
-
-| Decision | Default / owner |
-|---|---|
-| Standard customer fee | Preserve current effective saved policy; fallback documented ₹79 / ₹1,499; business Admin |
-| Express price and target | Disabled until effective policy approved; business Admin |
-| Quote TTL/handling cutoff/cost tolerance | Configurable proposed defaults; Admin/operations |
-| Provider order timing and corrections | After actual package preparation; freeze inputs at create intent; v1 corrections require resolved cancellation/replacement; early creation/in-place updates optional later |
-| Split COD supported mapping | Shared persisted allocations and all local ledger callers must pass conservation/reversed-order tests, then verify account/provider representation; block unsafe booking |
-| Reverse booking identity | One active booking per return-linked physical reverse parcel; distinct returns from one forward package remain independent |
-| Mixed-outcome return eligibility | Delivered-allocation policy/window and remaining quantity govern backend/UI actions; RTO/lost units stay dispatched and cannot become customer-delivered implicitly |
-| Physical handover | Staff confirms existing dispatch command; scans reconcile missing evidence |
-| Tax/invoice identity and treatment | Existing finance/Admin release gate; unchanged by carrier integration |
-| PII retention, incident owner and secret store | Existing Stage 0/3 owner decisions remain open |
-| Webhook/lookup/status semantics | Validate with official reference and account payloads before LIVE |
-
-The HLD can be implemented in MOCK without reopening settled blueprint architecture. Live fulfillment remains gated by real booking/label/pickup/tracking and reverse/cancellation recovery evidence, invoice/tax dependencies, production authorization/secrets/monitoring and operations acceptance. Fully automatic booking requires a later enabled policy and evidence; it is not part of the initial release default.
+Still verify exact MPS/reverse fields, supported pre-AWB packet/amount edits, complete/partial delivery semantics and account dashboard behavior. Existing tax/invoice, secrets, privacy/rate limits, operations and production acceptance gates remain. Razorpay Test Mode does not make Shiprocket LIVE a sandbox.
 
 ## 19. Sources and implementation handoff
 
-Original documentation baseline: [revision 7808336](https://github.com/AJPrj/ecommerce-production-blueprint/tree/7808336b2b74a0c25aecd04598ae002c39b9bb79). Key documents:
+- [Implementation progress](SHIPROCKET-IMPLEMENTATION.md), [tracker](IMPLEMENTATION-TRACKER.md), [Stage 2 operations](STAGE-2-OPERATIONS.md), [commerce decisions](COMMERCE-DECISIONS.md).
+- [Architecture](ARCHITECTURE-DECISIONS.md), [security](08-security.md), [reliability](09-reliability-distributed-systems.md), [testing](14-testing-strategy.md).
+- Reuse existing shipping application/provider/jobs/tracking, order/payment acceptance, cancellation/commercial allocation/COD and return services plus fulfillment/settings/catalog/customer tracking UI. Verify actual interfaces before code changes; this revision is not a source audit.
 
-- [Admin console implementation](https://github.com/AJPrj/ecommerce-production-blueprint/blob/7808336b2b74a0c25aecd04598ae002c39b9bb79/ADMIN-CONSOLE-IMPLEMENTATION.md)
-- [Dedicated admin blueprint](https://github.com/AJPrj/ecommerce-production-blueprint/blob/7808336b2b74a0c25aecd04598ae002c39b9bb79/18-admin-console-blueprint.md)
-- [Implementation tracker](https://github.com/AJPrj/ecommerce-production-blueprint/blob/7808336b2b74a0c25aecd04598ae002c39b9bb79/IMPLEMENTATION-TRACKER.md)
-- [Stage 2 operations](https://github.com/AJPrj/ecommerce-production-blueprint/blob/7808336b2b74a0c25aecd04598ae002c39b9bb79/STAGE-2-OPERATIONS.md)
-- [Commerce decisions](https://github.com/AJPrj/ecommerce-production-blueprint/blob/7808336b2b74a0c25aecd04598ae002c39b9bb79/COMMERCE-DECISIONS.md)
-- [Promotions and shipping threshold basis](https://github.com/AJPrj/ecommerce-production-blueprint/blob/7808336b2b74a0c25aecd04598ae002c39b9bb79/ADMIN-PROMOTIONS.md)
+Provider references consulted during design, including the MPS support page checked 20 October 2026:
 
-Targeted local application sources inspected for version 1.1 (workspace paths, not application commit or test evidence). Backend Java paths below are relative to `java-ecommerce-app/src/main/java/com/company/ecommerce/`:
+- [Official API reference](https://apidocs.shiprocket.in/?version=latest): payload authority; prove chosen MPS/update/cancellation contracts.
+- [Official MPS guide](https://support.shiprocket.in/support/solutions/articles/152000000706-what-is-multi-packet-shipment-how-to-create-it-): packets, master AWB and individual labels; dashboard support is not proof of adapter/API mapping.
+- [Forward lifecycle](https://apidocs-test.shiprocket.in/guides/order-lifecycle/), [webhooks](https://apidocs-test.shiprocket.in/guides/webhooks/), [returns](https://apidocs-test.shiprocket.in/guides/returns-workflow/).
 
-- `shipping/application/ShippingService.java` and `shipping/domain/CarrierAdapter.java` — preparation transaction, provider coupling, order aggregation and quantity projections.
-- `operations/application/CommercialAllocationService.java`, `operations/application/CodService.java`, `order/application/CancellationService.java` and `returns/application/ReturnService.java` — collection-order rounding, cancellation/refund limits and whole-order return gate.
-- `java-ecommerce-app/src/main/resources/db/migration/V21__snapshot_order_return_policy.sql` — return allocations can reference the same forward shipment in different requests.
-- `react-ui-ecommerce-app/src/features/checkout/OrderTracking.tsx` — customer return form currently depends on whole-order delivery.
-
-Provider references checked 16 October 2026:
-
-- [Shiprocket API reference](https://apidocs.shiprocket.in/?version=latest) — request/response contract authority.
-- [Official authentication guide](https://apidocs-test.shiprocket.in/guides/authentication/) — token acquisition and reuse.
-- [Official forward lifecycle guide](https://apidocs-test.shiprocket.in/guides/order-lifecycle/) — creation, AWB, pickup, documents and tracking.
-- [Official webhook guide](https://apidocs-test.shiprocket.in/guides/webhooks/) — callback header token and response expectations.
-- [Official returns guide](https://apidocs-test.shiprocket.in/guides/returns-workflow/) — reverse booking and tracking.
-- [Shiprocket API-user support guide](https://support.shiprocket.in/support/solutions/articles/43000604103-how-to-create-an-api-user-can-i-have-more-than-one-api-users-).
-
-The `apidocs-test` guides are an official documentation surface, not evidence of a sandbox API. Production API base remains `apiv2.shiprocket.in`. Resolve guide/reference differences against the current API reference and verified account behavior, documenting contract fixtures rather than guessing fields.
-
-Suggested repository filename for later adoption: `19-shiprocket-integration-hld.md`. Update the README document map, tracker and Stage 2 operations notes when implementation lands; do not mark provider acceptance or production readiness complete from HLD creation alone.
+The apidocs-test documentation host is not a sandbox API. Resolve account/reference differences with recorded fixtures, not guessed fields. Documentation approval is neither implementation evidence nor production activation.
