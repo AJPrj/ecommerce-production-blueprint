@@ -23,9 +23,11 @@ Cancelling an unbooked prepared package frees its allocation for repacking. It d
 
 ## Dashboard-managed standard orders
 
-The owner clarified [HLD v1.3](Shiprocket-Integration-HLD.md) on 20 October 2026: all items belong to one standard Shiprocket order with one parcel estimate and one AWB. Separate physical parcels/MPS are outside this release.
+The owner clarified the standard-order workflow on 20 October 2026 and approved automatic parcel estimates on 21 October; see [HLD v1.4](Shiprocket-Integration-HLD.md). All items belong to one standard Shiprocket order with one parcel estimate and one AWB. Separate physical parcels/MPS are outside this release.
 
-For new orders saved with `DASHBOARD_ORDER`, accepted COD and verified prepaid capture automatically queue shipping. Admin configures measured box presets, material/default allowances and product measurements. Missing required inputs keep the customer order confirmed and show an actionable not-created alert; current-version retries resume preparation.
+For new orders saved with `DASHBOARD_ORDER`, accepted COD and verified prepaid capture automatically queue shipping. Admin configures product measurements, packing clearance and per-unit protection allowances. Optional final-box presets improve the estimate; each unit receives protection, with only one outer carton's tare added. Without a usable preset, configured cardboard area density and construction factor generate one outer parcel estimate from a deterministic non-overlapping layout. Admin can enter density in g/ft² or g/m²; storage/API use g/m².
+
+A generated estimate within the application limits proceeds to Shiprocket with an Admin **Packaging estimate requires review** warning. Staff check/correct actual measurements in Shiprocket before assigning the AWB. Missing product/calculation inputs or estimates over 100 kg/300 cm per dimension remain held with actionable alerts. Correct the inputs and explicitly retry the current held job version; existing immutable intents and created provider orders are not recalculated by settings changes or deployment. This estimator refinement adds no migration.
 
 Staff assign the courier/AWB, print documents and schedule forward/reverse pickup in Shiprocket. The application discovers dashboard AWBs even while local tracking is empty. Verified webhooks and bounded polling update the local customer timeline. Proven transport evidence invokes exactly-once reservation consumption for this saved workflow; AWB/label/pickup scheduling alone does not dispatch stock.
 
@@ -33,7 +35,7 @@ Individual-quantity cancellation is available before AWB assignment. A pending r
 
 Eligible new-mode returns are automatically approved under the saved policy and create linked reverse orders. Reverse delivery scans enter history; warehouse receipt, inspection, restocking and refunds remain separate controlled actions. COD refund limits and Finance payout evidence remain unchanged.
 
-Enable `SHIPPING_WORKFLOW_MODE=DASHBOARD_ORDER` only after compatible backend/frontend deployment, migrations and Admin packaging setup. Both shipping and tracking workers must run, with backend runtime credentials/pickup/webhook settings. See [runtime instructions and recovery](SHIPROCKET-IMPLEMENTATION.md). Local verification does not authorize a production rollout or replace real-account acceptance.
+Enable `SHIPPING_WORKFLOW_MODE=DASHBOARD_ORDER` only after compatible backend/frontend deployment, migrations and Admin packaging setup. Both shipping and tracking workers must run, with backend runtime credentials/pickup/webhook settings. See [runtime instructions and recovery](SHIPROCKET-IMPLEMENTATION.md). The owner reported successful deployed order creation on 21 October after correcting missing inputs; delivery, cancellation, reverse and generated-estimate acceptance remain separate. Local verification and that report do not replace the remaining real-account acceptance.
 
 ## API and permission contracts
 
@@ -103,4 +105,4 @@ The finance report is bounded to at most 100 rows per request, uses durable paym
 - Complete the invoice/credit-note and tax-owner gates already tracked in Stage 1.
 - Finance must review the known reconciliation fixtures and refund allocation policy; operations must sign off the exception/recovery procedures against the selected carrier.
 
-Schema: `V20` extends fulfillment/returns and adds audit/command/address records plus partial reservation counters. `V21` snapshots order-line return policy and records per-package return allocations. `V22` adds lookup indexes for shipment, return, allocation, and history reads. V33 adds dashboard order planning/settings, V34 adds confirmed item-cancellation orchestration, and V35 adds independent reverse orders/tracking. Roll forward with Flyway; do not edit previously applied migrations.
+Schema: `V20` extends fulfillment/returns and adds audit/command/address records plus partial reservation counters. `V21` snapshots order-line return policy and records per-package return allocations. `V22` adds lookup indexes for shipment, return, allocation, and history reads. V33 retains the original catalog gallery seed, V34 adds confirmed item-cancellation orchestration, V35 adds independent reverse orders/tracking, and V36 adds dashboard order planning/settings. Roll forward with Flyway; do not edit previously applied migrations. See the [V33 collision recovery instructions](SHIPROCKET-IMPLEMENTATION.md#schema-and-api).

@@ -1,7 +1,7 @@
 # Shiprocket integration — High-level design
 
-- **Version:** 1.3 — dashboard-managed standard orders.
-- **Prepared:** 16 October 2026. **Revised:** 20 October 2026.
+- **Version:** 1.4 — dashboard-managed standard orders with automatic parcel estimates.
+- **Prepared:** 16 October 2026. **Revised:** 21 October 2026.
 - **Owner clarification:** One Shiprocket order contains all purchased items, one estimated physical parcel and one AWB. MPS and separate physical boxes are outside this release.
 - **Delivery model:** React/Spring Boot modular monolith; PostgreSQL retains commerce authority. See [implementation progress](SHIPROCKET-IMPLEMENTATION.md) for verification and rollout status.
 
@@ -61,35 +61,33 @@ The planner creates one local shipment and one immutable provider operation in i
 
 Use the catalog's existing product weight and length/width/height. Each purchased unit receives a protective packing estimate; quantity three means three estimated protected units **inside the single final parcel**, not three independently shipped parcels.
 
-Admin configures box codes, usable internal dimensions, outer dimensions, maximum packed weight, optional measured empty weights, padding clearance, tape/padding allowance, material g/m² and a construction factor. There are no invented production measurements or material defaults.
+Admin configures padding clearance, per-unit tape/protection allowance, cardboard area density and a construction factor. Reusable box presets are optional: their codes, internal/outer dimensions, maximum packed weight and measured empty weights improve the estimate when a suitable box is available. There are no invented production measurements or material defaults.
 
-Per-unit tare precedence:
+Each unit's protected dimensions are its product dimensions plus configured clearance on both sides. Its protective packaging weight is the explicit complete per-unit product override, if present, or the configured per-unit tape/protection allowance. An explicit zero override is supported. Do not infer a complete cardboard box for every unit and then add another outer box.
 
-1. A product override is complete protective packaging weight per unit, including its unit box, tape and padding. Explicit zero is supported; unset falls back.
-2. Otherwise use the selected unit box's measured empty weight plus configured tape/padding.
-3. Otherwise estimate from its outer surface area, material g/m², construction factor and tape/padding.
+Select the smallest usable final box preset by outer volume and stable code ordering. Fit all protected units using non-overlapping placement with rotations and check the total packed weight against the preset's capacity. Use measured empty-box tare when supplied; otherwise calculate its tare from outer surface area and material settings.
+
+If no preset can be used, estimate one outer parcel from a deterministic non-overlapping layout of the protected units. Configured material defaults calculate its tare. The absence of a matching preset alone does not block Shiprocket creation. Mark this generated estimate **Packaging estimate requires review** in Admin; staff check or correct actual measurements in Shiprocket before assigning the AWB. This is an operational review warning, not a new booking approval API or a provider-enforced lock.
 
 ~~~text
+protected_unit_dimensions_cm = product_dimensions_cm + 2 * clearance_cm
+protected_unit_g = product_unit_g + (complete_unit_override_g or configured_protection_g)
 surface_area_m2 = 2 * (L*W + L*H + W*H)       # outer dimensions in metres
-estimated_tare_g = ceil(surface_area_m2 * material_g_per_m2 * construction_factor
-                        + tape_padding_g)
-protected_unit_g = product_unit_g + selected_unit_tare_g
-
-one unit: final parcel uses its selected unit box and gross weight
-multiple units: final gross = sum(protected_unit_g) + outer_carton_tare_g
+estimated_outer_tare_g = ceil(surface_area_m2 * material_g_per_m2 * construction_factor)
+final_parcel_g = sum(protected_unit_g) + outer_tare_g  # exactly one outer carton
 ~~~
 
-The construction factor estimates flaps/seams and must be calibrated. Measured weights are preferred. For multiple units, the final outer carton has its own tare; that is additional to the separately protected units. The UI discloses this calculation to Admin, without adding a customer packaging charge.
+Here `or` means the override takes precedence when present, including zero. Outer tare is either measured or estimated, never both. The construction factor estimates flaps/seams and must be calibrated. Admin may enter density in g/ft² or g/m²; the API and stored configuration retain canonical g/m² (`g/m² = g/ft² / 0.09290304`). Use cardboard's mass per area, rather than assuming a paper GSM figure includes every layer. The UI explains the estimate without adding a customer packaging charge.
 
-Select the smallest fitting preset by outer volume and stable code ordering. Unit fitting permits rotations and requires clearance on both sides. Final carton fitting uses disjoint three-dimensional spaces with rotations and a conservative guillotine heuristic; it never accepts overlapping units. This estimate can require a larger carton than an experienced packer. Capacity and dimensions are both checked.
+The layout is a conservative estimate rather than an optimal packing guarantee. Preset fitting must not overlap units, and generated layout dimensions are rounded up for the provider. A missing or unsuitable preset can therefore use the material estimate, while missing required product, clearance, protection or material inputs still holds preparation. Measured preset tare does not require material settings; the generated fallback does.
 
 The planning cap is 1,000 units per order and the existing application parcel limits are 100 kg and 300 cm per dimension. Larger/unsupported orders require review. Grams and centimetres are internal units; the adapter converts weight to kilograms. Carrier volumetric/chargeable weight remains separate.
 
 ## 6. Missing data and operator correction
 
-Keep the accepted customer order and its reservations when required product data, a suitable box or necessary packaging defaults are missing. Show **Not created in Shiprocket — packaging details required**, with affected SKUs and actionable fields or configuration reasons.
+Keep the accepted customer order and its reservations when product measurements or necessary calculation inputs are missing. Show **Not created in Shiprocket — packaging details required**, with affected SKUs and actionable fields or configuration reasons. A generated parcel estimate within supported limits proceeds to creation with an Admin review warning. Estimates over the 100 kg/300 cm limits remain held for staff review; never truncate dimensions or weight to force creation.
 
-Admin saves settings using an expected revision and reason. Admin/Fulfillment may retry a held forward plan using its current job version and a reason. Retry clears the old estimate and cannot create a duplicate active provider order.
+Admin saves settings using an expected revision and reason. Admin/Fulfillment may retry a held forward plan using its current job version and a reason. Retry clears the old estimate and cannot create a duplicate active provider order. Changing settings or deploying this estimator does not recalculate an existing immutable provider intent or modify a created Shiprocket order; held work requires an explicit retry. The estimator uses the existing settings/plan structures and adds no migration.
 
 Staff may correct actual measurements in Shiprocket before courier booking. Such edits do not rewrite customer totals. Automatic reconciliation of arbitrary dashboard item/financial edits is outside this release; staff must use the webapp cancellation/refund workflow for customer commercial changes.
 
@@ -173,7 +171,7 @@ Keep browser session authentication, CSRF, backend roles and customer ownership.
 
 ## 15. Persistence and recovery
 
-Reuse V29–V31 provider bookings, immutable payloads, operation leases and tracking inbox. V33 adds saved workflow/provider/account, packaging revisions and unique order-planning jobs. V34 adds durable requested cancellation items, cancellation-attempt evidence and leases. V35 adds independent reverse jobs and reverse tracking mappings. Previously applied migrations are not rewritten.
+Reuse V29–V31 provider bookings, immutable payloads, operation leases and tracking inbox. V33 retains the original catalog gallery migration. V34 adds durable requested cancellation items, cancellation-attempt evidence and leases. V35 adds independent reverse jobs and reverse tracking mappings. V36 adds saved workflow/provider/account, packaging revisions and unique order-planning jobs, avoiding the previously applied gallery migration's V33 number. Previously applied migrations are not rewritten.
 
 Claim work in short transactions, perform network I/O outside them, and fence writes by the current lease, identity and relevant version. Lease expiry is not provider failure. Same-reference lookup must prove one matching remote order before accepting recovery. Alerts and original requests survive restart/Redis loss.
 

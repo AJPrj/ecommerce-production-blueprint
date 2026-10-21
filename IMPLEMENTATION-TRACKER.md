@@ -1,6 +1,6 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, and real-provider evidence are not complete. Backend API and React checkout flows have integration and user-level coverage for pre-order GST quotes, stale quote rejection, COD, stock conflicts, Razorpay success, decline/retry, refresh recovery, changed totals, and the Admin payment review queue.
 
@@ -120,16 +120,28 @@ Status: **Real forward adapter/workflow implemented; full HLD and live acceptanc
 
 ### Shiprocket dashboard-managed standard orders — 2026-10-20
 
-Status: **Implemented in the working tree; controlled account acceptance remains open.** The owner clarified one standard order containing all items, one parcel estimate and one AWB. [HLD v1.3](Shiprocket-Integration-HLD.md) supersedes the earlier MPS interpretation; [runtime/recovery instructions](SHIPROCKET-IMPLEMENTATION.md) explain the opt-in rollout.
+Status: **Implemented in the working tree; controlled account acceptance remains open.** The owner clarified one standard order containing all items, one parcel estimate and one AWB. The [standard-order HLD](Shiprocket-Integration-HLD.md) supersedes the earlier MPS interpretation; [runtime/recovery instructions](SHIPROCKET-IMPLEMENTATION.md) explain the opt-in rollout.
 
 - Saved `DASHBOARD_ORDER` orders automatically queue accepted COD or verified prepaid capture once. Packing settings/product measurements, conservative single-carton estimation and actionable not-created alerts precede immutable real-provider intent.
 - Staff ship through Shiprocket. Known-order polling discovers AWBs before local tracking exists; verified transport invokes shared exactly-once dispatch. Historical assisted records retain their original behavior.
 - Before-AWB item cancellation has durable requested/review/rejected outcomes, fresh provider checks, confirmed old-order cancellation, shared quantity/financial allocations and remaining-item replacement. Unknown mutation recovery is lookup-only.
 - Saved-policy-eligible returns automatically approve and create independent linked reverse orders. Reverse tracking cannot confirm warehouse receipt, restock units or initiate refunds. Existing receipt/QC/online-refund/COD payout gates remain in force.
-- V33 stores workflow/settings/planning, V34 stores requested cancellation/attempt/lease evidence, and V35 stores reverse identities/intent/recovery/tracking. Runtime mode changes do not backfill or reinterpret historical records.
+- V33 retains the original gallery seed; V34 stores requested cancellation/attempt/lease evidence, V35 stores reverse identities/intent/recovery/tracking, and V36 stores workflow/settings/planning. Planning was moved to V36 to avoid the existing applied V33 gallery migration. Runtime mode changes do not backfill or reinterpret historical records.
 - Verification: the final local backend regression run passed **219 tests across 34 suites**, including automatic COD creation, capture timing, missing packing data, role/CSRF/revision protection, AWB discovery, duplicate transport, cancellation/replacement, AWB races, unknown-cancel recovery, automatic reverse creation, original component conservation and exact remaining COD amounts after tax rounding. Scoped Spotless checks and the deployable `bootJar` build passed. The isolated local PostgreSQL server is version 13; PostgreSQL 16 CI and controlled live-account acceptance remain required.
-- Frontend verification passed **154 tests across 22 files** and the TypeScript/Vite production build. The independent full rerun resolved the earlier checkout timeout during simultaneous backend work without relaxing the test timeout. Changed-file lint reported no errors and six existing warnings. The deployable JAR contains V33–V35 and the new workers. No real provider mutation, deployment or production activation was performed.
+- Frontend verification passed **154 tests across 22 files** and the TypeScript/Vite production build. The independent full rerun resolved the earlier checkout timeout during simultaneous backend work without relaxing the test timeout. Changed-file lint reported no errors and six existing warnings. That deployable JAR contained the initial shipping migrations and workers; rebuild with restored gallery V33 and shipping V34–V36 for the migration-number collision fix. No real provider mutation, deployment or production activation was performed.
 - Remaining release work: operator-owned account/serviceability/wallet/permission acceptance, production-matching CI, tax/invoice/secret/privacy gates and deployment/rollback evidence. Standard/Express checkout, separate physical parcels and arbitrary dashboard item/financial edit reconciliation remain outside this release.
+
+### Migration-number collision recovery — 2026-10-21
+
+- The local application database had already applied `V33__seed_product_gallery_images.sql` with checksum `1105221108`. Restored that exact migration and moved the conflicting shipping planning migration to V36; V34/V35 remain unchanged. No repair or validation bypass is required for that gallery history.
+- `MigrationUpgradeIntegrationTest` migrates an isolated schema to the original V33, verifies its applied checksum, upgrades through V36 and verifies existing catalog data survives. The complete backend run passed **220 tests across 35 suites, zero failures/errors/skips**, against a separate PostgreSQL **16.15** database. Scoped Spotless checks, a clean `bootJar` build and packaged-migration inspection passed. The existing application database was inspected read-only and left unchanged.
+- This production-version local database check supplements the earlier PostgreSQL 13 evidence; CI, controlled live-provider acceptance and deployment approval remain separate requirements.
+
+### Automatic parcel estimates — 2026-10-21
+
+- The owner reported successful deployed Shiprocket order creation after correcting product measurements and packaging configuration. This is owner-reported creation evidence; the complete live tracking/cancellation/return lifecycle has not been accepted, and it does not prove the new estimator fallback.
+- Approved refinement: optional final-box presets, product dimensions plus packing clearance, per-unit protection allowances/complete overrides, and exactly one outer-carton tare. Without a usable preset, a deterministic non-overlapping layout and configured cardboard area density/construction factor estimate the parcel; Admin sees a nonblocking review-before-AWB warning. Missing required inputs or unsupported dimensions/weight still hold preparation.
+- Admin accepts material density in g/ft² or g/m² and saves canonical g/m². Existing settings/plan JSON is reused without a migration. Explicit retries resume corrected held jobs; existing immutable intents and created provider orders remain unchanged. Verification for this refinement is recorded separately from the preceding completed runs.
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 

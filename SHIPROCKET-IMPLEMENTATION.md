@@ -1,13 +1,14 @@
 # Shiprocket implementation progress
 
-Updated: 20 October 2026. [HLD v1.3](Shiprocket-Integration-HLD.md) records the owner's clarification: **multiple items in one standard Shiprocket order, one parcel estimate and one AWB**. The earlier MPS interpretation is superseded.
+Updated: 21 October 2026. [HLD v1.4](Shiprocket-Integration-HLD.md) records the owner's clarification: **multiple items in one standard Shiprocket order, one parcel estimate and one AWB**, with automatic cardboard-based estimates when no box preset is usable. The earlier MPS interpretation is superseded.
 
 ## Implemented application flow
 
 - Accepted COD and verified prepaid capture commit one durable order shipping job. Checkout/payment replay cannot create another job. Unpaid online orders wait for capture.
 - New orders save `ASSISTED` or `DASHBOARD_ORDER`, provider mode and account. Historical orders keep their saved workflow; switching configuration does not backfill them.
-- Product shipping measurements and optional complete per-unit packaging overrides feed a deterministic planner. Admin configures box presets, measured tare, material g/m², construction factor, clearance and padding. Missing required data produces a durable actionable **not created in Shiprocket** alert while keeping the customer order confirmed.
-- Individually protected units fit into one estimated outer carton. One unit reuses its unit box; multiple units add the selected outer carton's tare. Conservative rotation/fit and capacity checks may require a larger configured preset than an expert packer needs.
+- Product shipping measurements and optional complete per-unit packaging overrides feed a deterministic planner. Admin configures clearance, per-unit tape/protection allowance, cardboard area density and construction factor; measured box presets are optional. Density can be entered in g/ft² or g/m²; the API and saved settings retain g/m². Missing required calculation inputs produce a durable actionable **not created in Shiprocket** alert while keeping the customer order confirmed.
+- Each protected unit uses product dimensions plus clearance on both sides, and product weight plus its explicit complete packaging override or the configured tape/protection allowance. Do not infer a cardboard box around each unit. All units fit into one estimated outer carton; its measured tare or surface-area-based cardboard tare is added exactly once, including for a single-item order.
+- Prefer the smallest suitable final preset, using measured tare when available. If no preset is usable, a deterministic non-overlapping layout generates the parcel dimensions and configured material defaults estimate the outer carton weight. Creation proceeds with **Packaging estimate requires review** visible to Admin; staff confirm actual measurements in Shiprocket before AWB assignment. Missing required inputs or an estimate exceeding the application limits of 100 kg or 300 cm per dimension still holds preparation for correction/review.
 - Local shipment preparation and immutable real-provider intent commit together. The existing leased worker sends `POST /orders/create/adhoc` after commit. All remaining line quantities and commercial shares appear in one provider order; COD is represented once.
 - Staff manage courier selection, AWB, labels and pickup in Shiprocket. Dashboard-mode records reject competing assisted webapp mutations. Known provider order/shipment reads discover AWBs even when local tracking is still null.
 - Verified webhooks and bounded polling feed the local customer timeline. Early unknown-AWB scans are requeued after verified discovery. Proven transport consumes the existing reservation once for dashboard-mode records. Historical assisted records retain explicit handover.
@@ -47,7 +48,9 @@ SHIPROCKET_WEBHOOK_SECRET=<same strong token configured in Shiprocket>
 
 Register `https://<backend-host>/api/v1/logistics/events` with that same webhook security token. The frontend host is not the callback target. API-user permissions must include order creation/read/cancellation, tracking and pickup-address reads for reverse shipping. Production API base remains `https://apiv2.shiprocket.in/v1/external`; there is no assumed Shiprocket sandbox.
 
-In Admin → Settings, enter measured unit/outer box presets and the required allowances. In the product editor's Shipping tab, enter positive weight and all dimensions; optionally enter complete per-unit packaging weight. Product tax classification/approval remains a separate checkout gate and is not bypassed.
+In Admin → Settings, configure padding clearance and per-unit tape/protection weight. Configure cardboard area density and construction factor to allow estimates without box presets. Measured outer-box presets are optional and take precedence when suitable. To enter weighed material in g/ft², select that unit in Admin; conversion is `g/m² = g/ft² / 0.09290304` before saving. There are no new environment variables for this calculation.
+
+In the product editor's Shipping tab, enter positive product weight and all dimensions; optionally enter complete per-unit protective packaging weight. That override replaces the configured per-unit protection allowance; the one outer carton's tare is still added. Product tax classification/approval remains a separate checkout gate and is not bypassed.
 
 Normal provider batches default to 20; existing forward operation leases default to 60 seconds. Cancellation/reverse work uses two-minute fenced leases. Planning and operation scheduling defaults to five seconds. Forward tracking's configured polling interval defaults to 30 minutes; reverse reads normally poll every 30 minutes. The existing tracking properties can be configured directly for forward polling.
 
@@ -55,11 +58,14 @@ Docker images need no Shiprocket credentials at build time. Keep runtime secrets
 
 ## Schema and API
 
-- `V33__shipping_order_planning.sql`: saved workflow/provider/account, revisioned packaging settings, unique automatic order jobs and operation/shipment links.
+- `V33__seed_product_gallery_images.sql`: restored original catalog gallery migration; its applied checksum is preserved.
 - `V34__dashboard_item_cancellation.sql`: pending cancellation quantities, provider attempt evidence, one unresolved request per order and fenced recovery.
 - `V35__dashboard_reverse_orders.sql`: independent reverse identities, immutable intent, leases, retry state and reverse tracking mappings.
+- `V36__shipping_order_planning.sql`: saved workflow/provider/account, revisioned packaging settings, unique automatic order jobs and operation/shipment links. Planning was moved from the conflicting V33 number; V34/V35 do not depend on its tables.
 
-These extend V29–V31; previously applied migrations are unchanged. Run migrations before writers that depend on the new columns/tables.
+These extend V29–V31; previously applied migrations are unchanged. Run migrations before writers that depend on the new columns/tables. The automatic material-estimate refinement reuses the existing settings and saved-plan JSON and requires no additional migration.
+
+For a startup checksum mismatch where applied V33 is `seed product gallery images` (checksum `1105221108`), deploy the restored V33 and planning V36, then restart normally. No Flyway repair, disabled validation or database reset is needed. Remove stale build resources with `gradlew clean` before rebuilding if the old V33 planning file remains in the build directory. A database that already applied the conflicting V33 planning migration needs separate history/schema inspection before upgrading; do not blindly repair either migration history.
 
 | API | Access and behavior |
 |---|---|
@@ -77,7 +83,9 @@ All browser mutations retain session authentication, CSRF and backend authorizat
 
 ## Recovery and release limits
 
-- Missing measurements/defaults: correct catalog/settings and retry the held preparation.
+- Missing measurements/defaults: correct catalog/settings and explicitly retry the held preparation. A matching box preset is optional when configured material defaults can produce a supported estimate.
+- Generated parcel estimate: inspect the Admin review warning and check/correct actual packed measurements in Shiprocket before assigning the AWB. The warning does not block order creation or introduce a webapp booking command.
+- Existing immutable intent or created provider order: settings changes and the estimator deployment do not recalculate or mutate it. Continue its existing reconciliation workflow; do not recreate it to apply new packing defaults.
 - Unknown create/cancel: inspect the saved operation and reconcile by its existing provider/merchant identity. Do not create another order to work around an uncertain result.
 - AWB discovered during item cancellation: customer cancellation stops; staff resolve booking/packing exceptions.
 - Reverse address/permission/configuration failure: keep the eligible return approved, fix the input/permission and retry its work.
@@ -86,4 +94,4 @@ All browser mutations retain session authentication, CSRF and backend authorizat
 - One ordinary parcel is supported. Separate physical parcels need a separately verified carrier/MPS design.
 - Staff must use webapp commercial operations for item/financial changes; arbitrary manual Shiprocket amount/item edits are not automatically reconciled into the commerce ledger.
 
-Verification is recorded in [the tracker](IMPLEMENTATION-TRACKER.md). Local PostgreSQL, deterministic provider and local HTTP-wire tests do not use a real Shiprocket account. Controlled account acceptance, serviceability/wallet/permissions, production-matching PostgreSQL 16 CI, invoice/tax approval, secrets/privacy review and deployment/rollback evidence remain operator-owned release gates. No live provider mutation, deployment or production activation is claimed.
+Verification is recorded in [the tracker](IMPLEMENTATION-TRACKER.md). Local PostgreSQL, deterministic provider and local HTTP-wire tests do not use a real Shiprocket account. On 21 October the owner reported that a deployed customer order appeared in Shiprocket after correcting product measurements and packaging configuration. This is owner-reported order-creation evidence, not verified end-to-end acceptance of AWB assignment, delivery, cancellation, reverse transport or the new automatic material-estimate fallback. Controlled account acceptance, serviceability/wallet/permissions, production-matching PostgreSQL 16 CI, invoice/tax approval, secrets/privacy review and deployment/rollback evidence remain operator-owned release gates.
