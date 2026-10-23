@@ -1,6 +1,6 @@
 # Shiprocket implementation progress
 
-Updated: 21 October 2026. [HLD v1.4](Shiprocket-Integration-HLD.md) records the owner's clarification: **multiple items in one standard Shiprocket order, one parcel estimate and one AWB**, with automatic cardboard-based estimates when no box preset is usable. The earlier MPS interpretation is superseded.
+Updated: 22 October 2026. [HLD v1.4](Shiprocket-Integration-HLD.md) records the owner's clarification: **multiple items in one standard Shiprocket order, one parcel estimate and one AWB**, with automatic cardboard-based estimates when no box preset is usable. The earlier MPS interpretation is superseded.
 
 ## Implemented application flow
 
@@ -62,6 +62,7 @@ Docker images need no Shiprocket credentials at build time. Keep runtime secrets
 - `V34__dashboard_item_cancellation.sql`: pending cancellation quantities, provider attempt evidence, one unresolved request per order and fenced recovery.
 - `V35__dashboard_reverse_orders.sql`: independent reverse identities, immutable intent, leases, retry state and reverse tracking mappings.
 - `V36__shipping_order_planning.sql`: saved workflow/provider/account, revisioned packaging settings, unique automatic order jobs and operation/shipment links. Planning was moved from the conflicting V33 number; V34/V35 do not depend on its tables.
+- `V37__shipping_provider_status_sync.sql`: explicit last verified provider-status sync time, an index for eligible tracking observations and a general shipment-booking history index. Existing status values are not assigned an invented freshness timestamp.
 
 These extend V29–V31; previously applied migrations are unchanged. Run migrations before writers that depend on the new columns/tables. The automatic material-estimate refinement reuses the existing settings and saved-plan JSON and requires no additional migration.
 
@@ -80,6 +81,8 @@ For a startup checksum mismatch where applied V33 is `seed product gallery image
 | `POST /api/v1/logistics/events` | Mandatory provider token; durable minimal tracking inbox |
 
 All browser mutations retain session authentication, CSRF and backend authorization. No job/status response includes credentials, private provider requests or addresses.
+
+The Admin order queue now returns saved forward-shipment summaries with provider order/shipment IDs, last provider status, local booking state, AWB, courier and last sync time. Verified dashboard lookups persist provider status even before AWB assignment, under the existing identity/version/lease fences. The queue combines that observation with the latest applied tracking status by observation time. Newer verified scans that preserve the current shipment state also qualify, so an `OUT FOR DELIVERY` observation can replace `PICKED UP` while both map to `IN_TRANSIT`; regressive scans remain excluded. It makes no provider call itself; normal workers/webhooks supply updates. Confirmed cancelled bookings stop polling, so their cached provider status may predate cancellation; the separate local booking state still shows cancellation. Legacy records without a verified status show an awaiting-update message. Direct Shiprocket dashboard links are deferred at the owner's request.
 
 ## Recovery and release limits
 

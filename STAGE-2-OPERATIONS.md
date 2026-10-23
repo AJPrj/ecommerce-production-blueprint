@@ -7,7 +7,7 @@ Status: development workflows and dedicated web admin modules are implemented an
 ## Working flows
 
 - Staff sign in at `/admin/login` and open the role-aware `/admin` overview. The dedicated sidebar exposes authorized operations, catalog, finance and administration pages; `/admin/fulfillment` remains available to authorized fulfillment staff.
-- The order queue reads persisted orders, supports order-number search and bounded pagination, and opens order/package details.
+- The order queue reads persisted orders, supports literal order/customer/shipping-reference search and bounded pagination, and opens order/package details. Each row shows the ordering account and saved shipment summaries, including separate Shiprocket provider status and local booking state, AWB, courier and sync time. Cancelled/replacement bookings remain visible; missing shipping records/statuses are explicit.
 - Prepare a package with explicit line quantities and dimensions. Multiple packages can allocate an order, but their combined active allocations cannot exceed its remaining quantities.
 - Dispatch consumes only that package's stock. The payment and order are locked before reservation and stock changes; the shipment transition, stock movement, history, audit and outbox event commit together. Repeated dispatch does not consume twice.
 - Customers open **Track delivery and returns** from their order page. Tracking refreshes every 30 seconds and offers manual refresh. Each package has its own timeline.
