@@ -6,7 +6,7 @@ Status: development workflows and dedicated web admin modules are implemented an
 
 ## Working flows
 
-- Staff sign in at `/admin/login` and open the role-aware `/admin` overview. The dedicated sidebar exposes authorized operations, catalog, finance and administration pages; `/admin/fulfillment` remains available to authorized fulfillment staff.
+- Staff sign in at `/admin/login` and open the role-aware `/admin` overview. The dedicated sidebar exposes authorized operations, catalog, finance and administration pages; Orders is the single order/shipping navigation entry. `/admin/fulfillment` remains a permission-protected compatibility redirect to Orders, retaining query filters and anchors. Shipping / Fulfillment appears inside each order and preserves separate shipping-command permissions.
 - The order queue reads persisted orders, supports literal order/customer/shipping-reference search and bounded pagination, and opens order/package details. Each row shows the ordering account and saved shipment summaries, including separate Shiprocket provider status and local booking state, AWB, courier and sync time. Cancelled/replacement bookings remain visible; missing shipping records/statuses are explicit.
 - Prepare a package with explicit line quantities and dimensions. Multiple packages can allocate an order, but their combined active allocations cannot exceed its remaining quantities.
 - Dispatch consumes only that package's stock. The payment and order are locked before reservation and stock changes; the shipment transition, stock movement, history, audit and outbox event commit together. Repeated dispatch does not consume twice.
@@ -93,7 +93,7 @@ UI tests mock API/provider boundaries. These tests do not demonstrate a real cou
 5. **Received return:** keep units quarantined until inspection. Rejected inspection requires support follow-up; it cannot trigger an online refund.
 6. **Refund timeout:** use the return's retry action. The return fixes the original amount, reason and key; subsequent staff retries reuse those values. The payment reconciliation job handles existing pending refund records, and the return status job links confirmed outcomes. If a failure occurred before a refund ledger entry was created, staff retry is still required.
 7. **COD refund:** record verified collection evidence first. Refund staff may request a manual refund after accepted inspection; Finance approves and records an external payout reference. The API enforces collected balance, role separation and durable retry references. No automated bank transfer or unverified payout is represented as completed.
-8. **Notifications:** shipment/return events are persisted in the transactional outbox. Email/SMS delivery awaits the notification provider and Stage 3 worker.
+8. **Notifications:** shipment/return events are persisted in the transactional outbox; their delivery still awaits the broader Stage 3 notification worker. New-order Admin email uses a dedicated `ADMIN_ORDER_PLACED` outbox worker when explicitly enabled with backend SMTP settings. It supports bounded retries, leases, dead letters and safe error codes; COD and pending online orders notify at placement. See the backend README for configuration and selected-event recovery. Real SMTP acceptance and the production notification provider/owner remain outstanding.
 
 The finance report is bounded to at most 100 rows per request, uses durable payment/refund records, flags mismatches, and records an audit event. Large asynchronous export jobs remain future work.
 

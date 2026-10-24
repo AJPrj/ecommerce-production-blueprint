@@ -23,6 +23,7 @@ This specification does **not** relax the existing immutable-order-snapshot, ide
 
 - **Desktop:** persistent collapsible left sidebar, top bar with current workspace, breadcrumb, authorized global search, notifications, current staff identity and logout; main content region with page title, filters and a primary contextual action.
 - **Tablet/mobile:** navigation drawer, compact top bar, responsive tables/cards and accessible command menus. Preserve workflow completeness on narrow screens.
+- Keep a visible **Back to store** link in the top bar on every admin page, including mobile and collapsed-sidebar layouts. It opens the storefront home (`/`) in the same tab and preserves the staff session.
 - Show/hide navigation based on the authenticated actor's capabilities returned by the backend. Direct URL access must still receive an independently enforced `403` if permission is absent.
 - Each page has a stable URL and reload-safe state. Keep filters, sorting, pagination and active tab in URL search params where appropriate, but never include secrets or customer PII.
 
@@ -35,7 +36,7 @@ This specification does **not** relax the existing immutable-order-snapshot, ide
 | Stock | Inventory | `/admin/inventory` | On-hand, reserved, available, thresholds |
 | Stock | Movements/reconciliation | `/admin/inventory/movements`, `/admin/inventory/reconciliation` | Auditable adjustments and discrepancy review |
 | Commerce | Orders | `/admin/orders`, `/admin/orders/:number` | Search/detail; immutable order/payment snapshots |
-| Commerce | Fulfillment | `/admin/fulfillment` | Existing Stage 2 staff order queue, package/dispatch commands |
+| Commerce | Shipping / Fulfillment | `/admin/orders/:number#shipping-fulfillment` | Section inside each order; separately authorized package/provider/dispatch commands. `/admin/fulfillment` is a compatibility redirect, not a second sidebar entry. |
 | Commerce | Returns | `/admin/returns`, `/admin/returns/:id` | Eligibility, decisions, receipt, inspection |
 | Commerce | Refunds | `/admin/refunds` | Refund request/retry and payment-linked outcomes |
 | Finance | Payments and exceptions | `/admin/payments` | Razorpay/COD view, failure and webhook-review queues |
@@ -123,6 +124,7 @@ Dashboard content should be **role-aware and actionable**. A finance user should
 ### 4.6 Customers, promotions, settings, staff and audit
 
 - Customer views expose the **minimum necessary** fields for support; actions must be permission-filtered, paginated and logged. Respect customer privacy, retention and deletion decisions.
+- Customer-email policy approved on 2026-10-24: `ADMIN` sees full email addresses in customer lists and records; `SUPPORT` sees masked emails by default. Staff with `customers.email.reveal` (the existing Admin/Support role grant) can explicitly reveal one customer's email through a CSRF-protected, audited request. Phone masking remains unchanged. Every successful reveal records the actor and customer reference without recording the customer's email; failed audit persistence prevents disclosure.
 - Promotions/coupons have validity, eligibility, usage caps, stacking and preview validation; the backend re-evaluates at checkout.
 - Settings changes (shipping, return windows/exclusions, tax-related defaults) need clear effectivity, reason and audit; **never retroactively rewrite** checkout order policy or tax snapshots.
 - Staff management assigns capabilities through controlled identity administration, never self-service registration. Sensitive grants and revoked sessions must propagate correctly.
@@ -163,7 +165,8 @@ The general contract in `05-rest-api-design.md` enumerates an admin API surface,
 | Refund requests | `POST /api/v1/admin/operations/returns/{id}/refund` | Stage 2 durable refund path |
 | Financial reconciliation | `GET /api/v1/admin/operations/reconciliation` | Stage 2 bounded read; role-constrained |
 | Inventory adjustment | `POST /api/v1/admin/inventory/adjustments` | General blueprint contract; verify specific handler |
-| Customer lookup | `GET /api/v1/admin/customers[/{id}]` | General blueprint contract; add privacy-aware projection |
+| Customer lookup | `GET /api/v1/admin/customers[/{id}]` | Admin full email / Support masked email, additive `emailMasked` flag; masked phone; audited reads; `Cache-Control: no-store` |
+| Reveal customer email | `POST /api/v1/admin/customers/{id}/reveal-email` | `customers.email.reveal`, CSRF; `{email}` response after transactional `CUSTOMER_EMAIL_REVEALED` audit; `Cache-Control: no-store` |
 | Dashboard aggregates | **Proposed** `GET /api/v1/admin/dashboard` | Only add after checking existing reporting APIs |
 | Audit log listing | **Proposed** `GET /api/v1/admin/audit` | Design and authorize separately; no claim implemented |
 
