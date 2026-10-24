@@ -32,3 +32,7 @@ Read replicas, search clusters, partitioning and microservices are introduced ba
 
 ## 11. Record commercial rules and provisional assumptions
 The current Kerala dispatch, GST-inclusive price, shipping, rounding, invoice, credit-note, cancellation, and return decisions are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Its development defaults are not production tax approval; synthetic GST data stays isolated in the demo database.
+
+## 12. PostgreSQL catalog images for small deployments
+
+The owner approved PostgreSQL image storage when S3 is absent for a shop of approximately 100 products on Railway or a VPS. New uploads use a separate bounded binary media table, server image validation/optimization, stable image URLs and HTTP caching; ordinary product responses contain only references. `AUTO` chooses database storage only when S3 settings are entirely absent. Explicit `DATABASE`/`S3` modes are supported, and S3 request failures never trigger a silent storage switch. Existing image URLs remain compatible. Database capacity/backups include media; automatic orphan cleanup and migration of existing bytes to S3 are separate work. Publication now requires description/image, effective GST classification and complete positive shipping measurements while retaining incomplete drafts.

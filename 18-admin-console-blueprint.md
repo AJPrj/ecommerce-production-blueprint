@@ -86,6 +86,8 @@ Dashboard content should be **role-aware and actionable**. A finance user should
 - Editor tabs: **General, Pricing, Tax, Inventory, Variants, Images, Shipping, SEO, Publication** (as defined in `02-ui-ux-design.md`).
 - Save draft, preview, publish, archive; server rejects incomplete/invalid tax classifications and illegal operations. Surface `409` concurrent-edit conflicts with reload/compare guidance.
 - Each sellable variant has a SKU and its own stock accounting. Image uploads use presigned object-storage URLs and server-side confirmation; track progress/failures.
+- The owner-approved small-shop storage option also supports PostgreSQL uploads when S3 is absent, with a dedicated media table, image optimization, Admin-only upload/preview and cached public reads through active product references. S3 errors never silently change storage providers; see architecture decision 12.
+- Publication requires name/category/SKU/positive price, description, primary image, active HSN/SAC classification with an effective GST rate, and positive unit weight plus all dimensions. Incomplete drafts may omit description/image/tax/shipping; zero stock remains valid. Missing-field summaries link to the appropriate editor sections.
 - Publishing/archiving is an explicit audited command, not a client-side toggle.
 
 ### 4.2 Inventory
