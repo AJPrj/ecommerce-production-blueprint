@@ -1,6 +1,6 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, and real-provider evidence are not complete. Backend API and React checkout flows have integration and user-level coverage for pre-order GST quotes, stale quote rejection, COD, stock conflicts, Razorpay success, decline/retry, refresh recovery, changed totals, and the Admin payment review queue.
 
@@ -160,6 +160,12 @@ Status: **Implemented in the working tree; controlled account acceptance remains
 - Promotion validation now runs under its existing configuration lock shared with category deletion, preventing concurrent promotion saves from retaining deleted category IDs. Taxonomy updates reject an affected-row count of zero after concurrent deletion. Existing business-policy and order snapshots are preserved. No schema migration or live category deletion is part of this change; the running backend must be restarted to load the new endpoint.
 - Verification passed **24 backend tests across 3 suites** (10 deletion, 7 catalog administration, 7 promotions), with zero failures/errors/skips. Coverage includes authorization/CSRF, stale confirmation, reference guards, one audit across retries and deterministic promotion/edit races. Scoped Spotless checks, `bootJar`, packaged DTO inspection and diff checks passed. Tests used the separate `ecommerce_category_delete_test_20261023` database on PostgreSQL **13.8**; the temporary server was stopped and the existing backend on port 8080 was left running unchanged.
 - Frontend verification passed **17 focused tests across 3 files**, the TypeScript/Vite production build and scoped lint with zero errors. Existing route fast-refresh warnings and Sass notices remain. Confirmation/cancellation, unavailable endpoints, lost-response retries, duplicate prevention, draft preservation, cache updates and other taxonomy pages are covered. Browser visual verification was unavailable because no browser is connected; no actual category was deleted through the user's running application.
+
+### Draft archiving and category reassignment — 2026-10-24
+
+- Draft and published products now expose Archive in both the product list and saved-product editor; new unsaved and already-archived products do not show it. Archiving is a separate confirmed command, so incomplete drafts can be archived without saving or publishing their fields. Pending commands cannot be duplicated. Cancel/error preserves unsaved edits; a successful confirmed archive discards them and returns to the list. Responses for an editor that has been closed or changed to another product refresh the original target's cache without redirecting the new page or replacing its draft.
+- Archived product metadata saves preserve `ARCHIVED`, including category reassignment and omitted `active` inputs. The editor labels an unpublished archived save as Save changes. Blank descriptions are allowed for unpublished drafts, matching the backend DTO; published-field and GST gates remain in place. This fixes the observed incomplete fixture's reassignment path without adding a separate category-move API.
+- Category deletion remains blocked by every linked product, including drafts and archived records. Its confirmation now explains that archiving retains the category link and offers View products to reassign in a new tab, filtered to the exact category across all publication states. Move products through Edit → Category → Save before deleting the unused category, or deactivate it to retain the links. Existing product inventory, reservations and historical order/policy snapshots are preserved. No migration or automatic fixture-data cleanup is introduced.
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 
