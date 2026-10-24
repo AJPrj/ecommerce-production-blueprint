@@ -29,7 +29,7 @@ This specification does **not** relax the existing immutable-order-snapshot, ide
 | Nav group | Page | Proposed route | Purpose |
 |---|---|---|---|
 | Overview | Dashboard | `/admin` | KPIs, actionable queues, risk alerts |
-| Catalog | Products | `/admin/products` | Search, filter, draft, edit, publish/archive |
+| Catalog | Products | `/admin/products` | Search, filter, draft, edit, publish/archive, confirmed deletion that releases category links and retains commercial/inventory history |
 | Catalog | Product editor | `/admin/products/new`, `/admin/products/:id/edit` | Structured product authoring and validation |
 | Catalog | Categories, brands, attributes | `/admin/catalog/categories`, `/admin/catalog/brands`, `/admin/catalog/attributes` | Controlled catalog taxonomy |
 | Stock | Inventory | `/admin/inventory` | On-hand, reserved, available, thresholds |
