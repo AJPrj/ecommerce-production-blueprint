@@ -88,6 +88,19 @@ POST   /api/v1/wishlist/items
 DELETE /api/v1/wishlist/items/{variantId}
 ```
 
+Implemented customer contract: all three operations require an active signed-in
+customer and return `200` with `{ "items": ProductDto[] }` and `Cache-Control:
+no-store`. POST accepts `{ "productVariantId": "<uuid>" }`; the customer identity
+comes from the session. Mutations require the existing CSRF token. Repeated adds
+and removals are idempotent, with one saved entry per customer/variant.
+
+Entries are returned newest first with the saved variant's current catalog price
+and available stock. Out-of-stock products can stay saved. Draft, archived and
+deleted products are omitted and cannot be newly saved; saved entries can still
+be removed by variant ID. Saving never reserves inventory. Adding a saved item to
+the cart uses the existing authoritative cart API and keeps it in the wishlist.
+Guest wishlist storage and merging are outside this account-backed contract.
+
 ## 7. Cart
 
 ```text
