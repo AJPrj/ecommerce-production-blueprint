@@ -8,7 +8,7 @@ The React application now has a separate lazy-loaded staff console at `/admin`, 
 |---|---|
 | `/admin` | Authorized dashboard aggregates, 7/30/90-day range, merchandise trend, current action queues, recent orders, configurable low-stock watchlist, bounded summary export and readiness notice |
 | `/admin/products`, `/admin/products/new`, `/admin/products/:id/edit` | Server search/filter/sort/pagination; draft/published/archived states; archive drafts or published products from the list or saved-product editor; delete any publication state from the list and release its category link; nine editor tabs; variants; preview; audited publication; stale-edit conflicts and dirty-navigation protection |
-| `/admin/catalog/categories`, `/admin/catalog/brands`, `/admin/catalog/attributes` | Controlled taxonomy authoring and activation, validated attributes and audit; category-only deletion with confirmation and server reference checks |
+| `/admin/catalog/categories`, `/admin/catalog/brands`, `/admin/catalog/attributes` | Controlled taxonomy authoring with multi-level categories, activation, validated attributes and audit; category-only deletion with confirmation and server reference checks |
 | `/admin/inventory`, `/admin/inventory/movements`, `/admin/inventory/reconciliation` | On-hand/reserved/available per SKU, thresholds, reasoned signed adjustments, persistent retry references, movement history and discrepancy investigation |
 | `/admin/orders`, `/admin/orders/:number` | Unified Orders navigation with a Shipping / Fulfillment section per order; PDF-inspired responsive queue, quick status/payment filters, current-page counts and CSV export. Bounded order/customer/shipping-reference search and state/date filters; ordering account name/email/phone; saved Shiprocket order/shipment IDs, provider status, booking state, AWB, courier and sync time; immutable commercial/GST/shipping snapshots, payment/refund references, returns, audit and role/state actions |
 | `/admin/returns`, `/admin/returns/:id`, `/admin/refunds` | Reloadable queues/details and state filters, decision/receipt/quarantine/inspection, confirmed provider refund results, retry and COD request flow |
@@ -25,6 +25,31 @@ The React application now has a separate lazy-loaded staff console at `/admin`, 
 Orders is the single sidebar entry for order and shipping work. Legacy `/admin/fulfillment` links replace-redirect to `/admin/orders` while retaining query parameters and anchors; the legacy entry retains its `shipments.write` gate. Canonical order pages retain `orders.read`. Shipment preparation, provider commands and shipping retries retain the existing Admin/Fulfillment role checks and server authorization; read-only staff can inspect shipment history without requesting provider command access. Each order groups delivery/items/cancellations, Shipping / Fulfillment, and payment/commercial information into separate sections. Dashboard-workflow orders describe automatic preparation and Shiprocket operations; assisted orders retain explicit package preparation.
 
 The queue follows the supplied Orders PDF's structure: quick All/Confirmed/COD due/Paid/Cancelled filters, search/date filters, state selectors, customer initials, colored status badges and compact shipping records with expandable saved details. Counts are explicitly scoped to the currently loaded filtered page, including today's orders in Asia/Kolkata, COD-due orders (not a monetary collection balance), fulfillment-status remainders and cancelled orders. Pagination shows returned row ranges without inventing a total. Export page CSV downloads only the loaded page, quotes values and neutralizes spreadsheet formulas. No aggregate-count, full-dataset-export or provider API contract was added. Automatic preparation/recovery alerts remain accessible below the queue.
+
+## Category hierarchy
+
+Categories support multiple levels through **Parent category** in
+`/admin/catalog/categories`. Select **Top-level category** for a root, or any
+other category to create/move a subcategory. Editing a parent moves its subtree;
+its descendants retain their assignments. Parent options exclude the category
+being edited and all its descendants; the backend validates the same constraints
+and serializes hierarchy writes/deletion to prevent concurrent cycles. Failed
+saves preserve the form. Brands and attributes retain their flat editor.
+
+The category table is indented, and product category/filter/replacement options
+show complete paths. The storefront sidebar renders nested lists with separate
+category links and accessible expand/collapse buttons, opens the selected branch,
+and displays ancestor breadcrumbs. A parent page includes published products from
+all descendant categories; public counts use that same subtree. Admin product
+filters retain exact assignment semantics for reassignment/deletion workflows.
+
+Activation remains per category, with no cascading changes to products or child
+categories. Active children of an unavailable/inactive parent remain visible as
+roots in the storefront. Existing category-based promotions and return policies
+keep their exact targeting behavior. A parent cannot be deleted while children
+reference it; move them using the editor first. V42 adds a parent lookup index
+and a future-write self-parent check without rewriting existing rows. Rebuild and
+restart the backend to apply V42 and expose `parentId`, then refresh the frontend.
 
 ## Data and permission contracts
 
@@ -72,6 +97,8 @@ The public base URL must serve the bucket's object-key root. Configure bucket CO
 `CATALOG_STORAGE_MODE=AUTO` now selects PostgreSQL uploads when all S3 settings are absent. Partial S3 configuration still fails closed; `DATABASE` explicitly selects PostgreSQL and `S3` explicitly selects S3-compatible storage. Migration V40 stores optimized bytes separately from product rows, and the Admin uploader uses authenticated multipart requests with CSRF and a retry UUID. Database images are decoded/re-encoded to bounded JPEG/PNG, resized to at most 1,600 pixels per side, and served by a cached endpoint only to Admins or through active product references. Existing S3/manual URLs remain supported. See [storage and capacity details](../java-ecommerce-app/README.md#product-publication-and-image-storage).
 
 Publication requires a description, primary image, active category, positive selling price, active HSN/SAC classification with a current GST rate, and positive whole-number unit weight/length/width/height. SKU uniqueness and nonnegative integer inventory remain enforced; stock zero is allowed. Drafts retain the core name/category/SKU/price requirements but may omit description, image, tax and shipping. Invalid fields show links to editor sections. Creating a draft and subsequently failing publication opens the saved draft rather than creating another product on retry. Existing published products are not automatically unpublished by the migration; their next metadata save/publication must meet the new rules.
+
+The product editor's General tab shows a read-only HSN/SAC code marked **Required to publish**, with a shortcut to choose or change the GST classification in Tax. The selected active classification supplies the code; products continue to save `taxCategoryCode`, without a separate HSN override. Missing or inactive classifications and blank codes remain visibly unassigned. HSN/SAC is required for publication, while incomplete drafts may omit it. Create new classifications and their effective rates in `/admin/tax`; choose the classification appropriate to the actual goods rather than a generic rate alone.
 
 ## Verification and release boundaries
 

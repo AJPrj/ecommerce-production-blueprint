@@ -71,6 +71,26 @@ page=0&
 size=24
 ```
 
+Implemented category hierarchy uses `GET /api/v1/catalog/categories` and the
+existing Admin-protected `GET/POST /api/v1/catalog/admin/taxonomy/categories`
+and `PUT /api/v1/catalog/admin/taxonomy/categories/{id}`. Mutations also require
+CSRF. Category responses add
+nullable `parentId`; the public list includes active categories. Create/update
+accepts `parentId` as a category UUID or `null` for a top-level category. These
+are complete updates: an omitted parent also makes the category top-level.
+Unknown parents, self-parent links and moves under descendants return 400.
+Brands and attributes cannot have parents. Category slugs remain globally unique.
+
+`GET /api/v1/catalog/products?category={slug}` includes products assigned directly
+to the selected category or any depth of descendants, with the existing public
+product visibility, price, sort and pagination rules. Public category
+`productCount` uses the same subtree scope. Admin product `categoryId` filtering
+remains an exact assignment filter. Activation is per category, without cascading
+to children or changing existing product publication. Active children whose
+parents are absent from the public list appear as roots in storefront navigation.
+Hierarchy does not change category targeting for promotion or return rules.
+Category deletion still requires children to be reassigned or removed first.
+
 ## 5. Search
 
 ```text
