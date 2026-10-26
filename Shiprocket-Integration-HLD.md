@@ -59,6 +59,23 @@ The planner creates one local shipment and one immutable provider operation in i
 
 ## 5. Product data and packaging configuration
 
+Every SKU of a multi-variant product requires its own complete unit
+weight/length/width/height and optional protection-weight override/shipping class.
+Measurements replace the set without borrowing fields from another size.
+Publication checks every persisted SKU, and checkout rejects a selected SKU with
+missing measurements. Single-SKU products retain product measurement fallback.
+V43 adds nullable variant measurements and order-line snapshots without inventing
+or copying values into existing variants.
+
+Forward and return planning use saved order-line measurements first, then the
+exact SKU's current measurements. Unsnapshotted multi-variant lines cannot fall
+back to shared product dimensions: missing values hold preparation for catalog
+correction and explicit retry. Complete historical snapshots remain stable across
+catalog edits. Parcel planning adds configured protection/outer packaging to the
+selected unit measurements before creating the Shiprocket payload.
+This does not change parcel limits, packaging rules, customer shipping charges,
+provider payload immutability or historical financial snapshots.
+
 Use the catalog's existing product weight and length/width/height. Each purchased unit receives a protective packing estimate; quantity three means three estimated protected units **inside the single final parcel**, not three independently shipped parcels.
 
 Admin configures padding clearance, per-unit tape/protection allowance, cardboard area density and a construction factor. Reusable box presets are optional: their codes, internal/outer dimensions, maximum packed weight and measured empty weights improve the estimate when a suitable box is available. There are no invented production measurements or material defaults.

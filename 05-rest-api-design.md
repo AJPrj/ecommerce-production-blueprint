@@ -91,6 +91,17 @@ parents are absent from the public list appear as roots in storefront navigation
 Hierarchy does not change category targeting for promotion or return rules.
 Category deletion still requires children to be reassigned or removed first.
 
+Product detail and Admin `details.variants[]` add nullable `shipping` with the same
+measurement fields as product shipping. Admin `variants[]` create/update accepts
+this measurement set: an object replaces the complete set. Null/omitted is
+allowed in drafts, but product fallback applies only to single-SKU products.
+Multi-variant publication and new orders require each SKU's own measurements. Drafts may omit required measurements; publication requires
+complete positive integer weight/dimensions for every persisted variant. Optional
+packaging weight accepts integer zero. The catalog `ProductDto` adds `variantCount`
+to support explicit customer selection from product cards. No checkout/cart client
+price or measurement fields are introduced; the server resolves and snapshots
+complete effective measurements on new order lines through the existing APIs.
+
 ## 5. Search
 
 ```text

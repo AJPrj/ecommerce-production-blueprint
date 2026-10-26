@@ -36,3 +36,17 @@ The current Kerala dispatch, GST-inclusive price, shipping, rounding, invoice, c
 ## 12. PostgreSQL catalog images for small deployments
 
 The owner approved PostgreSQL image storage when S3 is absent for a shop of approximately 100 products on Railway or a VPS. New uploads use a separate bounded binary media table, server image validation/optimization, stable image URLs and HTTP caching; ordinary product responses contain only references. `AUTO` chooses database storage only when S3 settings are entirely absent. Explicit `DATABASE`/`S3` modes are supported, and S3 request failures never trigger a silent storage switch. Existing image URLs remain compatible. Database capacity/backups include media; automatic orphan cleanup and migration of existing bytes to S3 are separate work. Publication now requires description/image, effective GST classification and complete positive shipping measurements while retaining incomplete drafts.
+
+## 13. Explicit variant choice and per-SKU shipping measurements
+
+Multi-variant products require a customer choice before purchase, and catalog
+cards route to the chooser rather than silently adding the primary SKU. Each
+variant of a multi-variant product must have its own complete unit measurements
+and optional packaging weight/class. Product fallback is retained only for a
+single SKU. Publication validates every persisted variant, and checkout rejects
+missing multi-variant measurements. New orders snapshot complete
+effective measurements so forward and return planning remain stable across
+catalog changes. Legacy/incomplete order lines retain the established correction
+and held-plan retry flow. Financial snapshots and created provider intent remain
+immutable. V43 adds nullable JSONB overrides/snapshots without inventing values
+for existing rows.

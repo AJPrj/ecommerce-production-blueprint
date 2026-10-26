@@ -26,6 +26,30 @@ Orders is the single sidebar entry for order and shipping work. Legacy `/admin/f
 
 The queue follows the supplied Orders PDF's structure: quick All/Confirmed/COD due/Paid/Cancelled filters, search/date filters, state selectors, customer initials, colored status badges and compact shipping records with expandable saved details. Counts are explicitly scoped to the currently loaded filtered page, including today's orders in Asia/Kolkata, COD-due orders (not a monetary collection balance), fulfillment-status remainders and cancelled orders. Pagination shows returned row ranges without inventing a total. Export page CSV downloads only the loaded page, quotes values and neutralizes spreadsheet formulas. No aggregate-count, full-dataset-export or provider API contract was added. Automatic preparation/recovery alerts remain accessible below the queue.
 
+## Variant shipping and explicit customer choice
+
+The product editor's **Shipping** tab has one measurement card per variant with
+its name, SKU, completeness status, weight/dimensions, optional complete protection
+weight and shipping class. The Variants tab links to Shipping. Shared inheritance
+checkboxes are removed. Existing product measurements can be copied explicitly
+into one SKU at a time after verification. New variants start without measurements.
+Drafts may remain incomplete; publishing and new orders for multi-variant products
+require every persisted SKU's own complete positive integer measurements. Product
+fallback remains supported for single-SKU products. The editor refuses to save
+variant measurements against an older backend that lacks the V43 response contract.
+
+Multi-variant product pages start without a selected option. Add to cart/Buy now
+show an accessible selection message and focus the selector before submitting.
+Catalog cards route to variant choice using the additive `variantCount` response
+field. Single-variant and saved-variant purchase flows remain compatible.
+
+V43 adds variant measurement overrides and order-line measurements. Checkout saves
+complete effective measurements for new lines; subsequent catalog edits cannot
+alter those lines' forward/return planning inputs. Historical unsnapshotted multi-variant lines require the exact SKU's measurements; missing values hold preparation for correction/retry. Single-SKU
+lines retain product fallback. Provider intent,
+customer totals and historical financial snapshots remain unchanged. Rebuild and
+restart the backend for V43, then refresh the updated frontend.
+
 ## Category hierarchy
 
 Categories support multiple levels through **Parent category** in
