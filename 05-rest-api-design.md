@@ -2,6 +2,9 @@
 
 ## 1. Base conventions
 
+Implemented catalog description/review behavior and endpoint contracts are documented in
+[Product descriptions and customer reviews](PRODUCT-DESCRIPTIONS-AND-REVIEWS.md).
+
 Use:
 
 ```text

@@ -1,6 +1,14 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
+
+### Product descriptions and customer reviews — 2026-10-26
+
+- Product detail now has keyboard-accessible Description and Reviews tabs, a short purchase-area introduction, a full description with paragraph/headings/bullets, and a factual catalog summary. Admin description authoring guidance and draft preview use the same escaped text format. Existing descriptions are preserved; no product claims or reference-merchant text are invented or copied.
+- V44 persists one review per customer/product with an integer 1–5 rating, bounded title/body, PENDING/APPROVED/HIDDEN lifecycle and indexes. Signed-in customers can submit/edit/remove their own review. Edits return to approval. Admin > Product reviews exposes approve/hide queues with stale-content protection and audit events. Public readers see only approved reviews and author first names; private account details are omitted. Duplicate retries are stable, writes require CSRF and roles, and changed submissions have a ten-second per-account throttle. Approved rating/count aggregates are batched into existing catalog/detail/Admin/wishlist DTOs.
+- Verification passed **36 PostgreSQL integration tests across five suites**: product reviews (4), variant/catalog projection (10), product deletion (9), wishlist (12), and migration upgrade preservation (1). The first run exposed anonymous review writes returning 403; adding a customer-only URL rule before the public catalog matcher corrected the response to 401, and the final regression passed. Scoped Spotless, compilation and bootJar passed. Isolated local databases were removed afterward; providers and email were disabled.
+- Frontend verification passed **53 distinct tests across six files**: description/tabs (2), customer reviews (5), moderation (2), product detail (21), publication (7) and catalog editor (16). Final TypeScript/Vite production build passed. Scoped lint has zero errors; effect/library warnings and existing Sass notices remain. Browser visual acceptance is unverified because no browser connection is available.
+- [Description/review contracts and usage](PRODUCT-DESCRIPTIONS-AND-REVIEWS.md), the API/domain blueprint and both application READMEs document the change. Rebuild/restart the backend to apply V44 before using reviews, then refresh the frontend. No new environment configuration, provider activation or production deployment was performed.
 
 Business-policy answers are recorded in [COMMERCE-DECISIONS.md](COMMERCE-DECISIONS.md). Stage 0 decision work is **complete for development scope**; missing seller identity, privacy/retention policy, and production operations choices are explicit launch blockers. Stage 1 remains **in progress**: production tax approval, invoice output, and real-provider evidence are not complete. Backend API and React checkout flows have integration and user-level coverage for pre-order GST quotes, stale quote rejection, COD, stock conflicts, Razorpay success, decline/retry, refresh recovery, changed totals, and the Admin payment review queue.
 

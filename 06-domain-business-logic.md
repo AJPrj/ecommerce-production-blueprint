@@ -276,6 +276,9 @@ For India-ready ecommerce, store tax snapshots on each order line so historical 
 
 ## 15. Reviews
 
+The implemented text-review lifecycle, ownership, moderation, aggregation and abuse controls
+are specified in [Product descriptions and customer reviews](PRODUCT-DESCRIPTIONS-AND-REVIEWS.md).
+
 Rules:
 
 - Optional verified-purchase marker
