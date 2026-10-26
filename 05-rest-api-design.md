@@ -59,6 +59,14 @@ also require CSRF. Saves replace ordered product-ID selections and check an
 optimistic version. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md) for
 payloads, eligibility, ranking, backups and conflict handling.
 
+`GET /api/v1/catalog/collections/{featured|bestsellers|special}` returns all
+currently eligible collection members as the existing catalog page
+`{items,totalItems,page,size,totalPages}`. It accepts search/price/sort/page
+parameters and keeps staff selection order or bestseller ranking by default.
+PostgreSQL applies filtering and pagination before product projection. Collection
+URLs are independent of product categories; homepage previews remain limited
+to four. See the same merchandising contract for parameters and validation.
+
 ```text
 GET /api/v1/categories
 GET /api/v1/categories/{slug}

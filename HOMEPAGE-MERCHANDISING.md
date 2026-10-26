@@ -13,7 +13,7 @@ Each section supports up to 40 unique saved product IDs, including backup choice
 Move products up or down to change their priority. A product can appear in both
 sections, but cannot repeat within one section.
 
-The public page shows the first four currently eligible choices per section.
+The homepage shows the first four currently eligible choices per section.
 Eligibility requires an active, published, nondeleted product and available stock
 in at least one variant. Available stock is `max(0, onHand - reserved)`. Special
 products additionally require a real discount on at least one available variant:
@@ -66,6 +66,29 @@ never enter delivered quantity and need no additional cancellation subtraction.
 Test/demo sales are included if they are in the active database; no fabricated
 sales or rating-based fallback fills an empty section.
 
+## Complete collection listings
+
+Each nonempty homepage section has a **View all** link to its own collection:
+`/collections/featured`, `/collections/bestsellers` or `/collections/special`.
+The links remain visible on mobile. All three collections are also available
+from the shopping-category menu and the category-page sidebar. The Offers link
+and footer Specials link open the Special Products collection.
+
+Collection pages use the existing product grid/list controls, price filter,
+sorting, page size and pagination. Featured and Special include every currently
+eligible saved selection, including choices beyond the homepage's four slots.
+Their default order is staff selection order. Bestsellers includes every
+currently eligible product with positive net paid delivered units in the same
+90-day window, ordered by the same ranking and tie-breakers as the homepage.
+Unrelated catalog products never fill a collection. All Products remains at
+`/category/all`; real category slugs remain independent of collection URLs.
+
+Collections reuse the eligibility rules above, so unavailable choices do not
+appear publicly. Changing price, sort or page size resets pagination while
+keeping the current collection. An empty collection offers a link to All Products;
+request failures offer retry. Unknown collection slugs show a missing-collection
+message.
+
 ## API contracts
 
 All paths below begin `/api/v1/catalog`.
@@ -73,6 +96,7 @@ All paths below begin `/api/v1/catalog`.
 | Method and path | Behavior |
 |---|---|
 | GET `/homepage` | Public server-calculated homepage projection |
+| GET `/collections/{collection}` | Public complete collection with server-side filtering, sorting and pagination |
 | GET `/admin/homepage` | `catalog.write`; saved configuration, current selection eligibility and preview |
 | PUT `/admin/homepage` | `catalog.write` + CSRF; replace both ordered selections with optimistic version checking and an audit event |
 | POST `/admin/homepage/preview` | `catalog.write` + CSRF; calculate unsaved choices without configuration, version or audit writes |
@@ -82,6 +106,19 @@ existing product DTO, plus `specialMaxDiscountPercent` and
 `bestsellerWindowDays` (90). Products retain real approved review summaries and
 compact variant options for the existing card selector and wishlist flow.
 Unselected multi-variant products still require an explicit variant choice.
+
+`collection` is `featured`, `bestsellers` or `special`. The collection endpoint
+returns the existing catalog page shape:
+`{items: ProductDto[], totalItems, page, size, totalPages}`. Query parameters are
+`q`, `minPrice`, `maxPrice`, `sort`, `direction`, `page` and `size`. Page numbering
+starts at zero, default size is 24, and sizes 1-50 are accepted. The default
+`sort=featured` retains selection order or bestseller rank; `price-low`,
+`price-high` and `newest` retain collection membership and use the existing
+catalog price/date semantics. Filtering and pagination execute in PostgreSQL
+before mapping the page's product DTOs. Unknown collection names return 404;
+invalid pagination or price ranges return 400. Public responses use
+`Cache-Control: no-store`. No additional migration or configuration is needed;
+rebuild/restart the backend and refresh the matching frontend.
 
 Admin configuration contains `version`, `featured`, `special` and `preview`.
 Each selection is `{productId, product, eligible, reason}`; `product` can be null
@@ -115,6 +152,20 @@ before using the updated storefront or Admin page, then refresh the frontend.
 No new provider credentials or environment settings are required.
 
 ## Verification
+
+Complete collection verification on 2026-10-26 passed 32 PostgreSQL integration
+tests across the homepage/collections and variant/catalog suites, including six
+new cases covering products beyond four, selection/rank ordering, SQL pagination
+and totals, filters/sorts, variant eligibility, empty pages and invalid requests.
+Scoped Spotless, main/test compilation and `bootJar` passed. The temporary
+database was removed and external providers remained disabled.
+
+Frontend collection and related regression checks passed 114 distinct tests
+across 12 suites, plus the TypeScript/Vite build and scoped lint. One Admin
+measurement test timed out in the parallel run; the entire 16-test suite passed
+on an isolated rerun without code or timeout changes. Existing route Fast Refresh
+warnings and Sass notices remain. Browser visual acceptance is unverified because
+no browser connection was available.
 
 Verification on 2026-10-26 passed 52 PostgreSQL integration tests in six suites,
 including 16 homepage cases and migration preservation from original V33 through

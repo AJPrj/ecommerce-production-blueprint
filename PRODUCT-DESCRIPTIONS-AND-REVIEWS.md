@@ -30,6 +30,12 @@ existing product descriptions or copy the reference merchant's text.
   withdraw the old published rating until approved again. Hidden reviews remain
   visible to their author and staff. There is no verified-purchase badge because
   submission does not require a purchase.
+- The open Reviews panel reloads public reviews, the product rating/count and the
+  customer's review status when the browser window regains focus or its tab becomes
+  visible. **Refresh reviews** also checks for moderation changes without reloading
+  the page. These
+  checks preserve unsaved rating, title and body edits. Pending reviews continue
+  to be excluded from the public list and rating until an Admin approves them.
 - Moderation checks `expectedUpdatedAt`, preventing approval of a stale version
   after an edit. Moderation writes an audit event. CSRF and CUSTOMER/ADMIN method
   authorization protect writes. User-row locking and a unique database constraint
