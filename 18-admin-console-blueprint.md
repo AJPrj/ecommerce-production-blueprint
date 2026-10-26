@@ -83,6 +83,7 @@ Dashboard content should be **role-aware and actionable**. A finance user should
 ### 4.1 Products / catalog
 
 - Product list: paginated server search, category/brand/status filters, SKU search, stock and publication indicators; open editor in dedicated route.
+- Categories, brands and attributes initially show a full-width list. **Add category**, **Add brand** or **Add attribute** opens the corresponding inline creation form; **Edit** opens the selected record's saved details. Cancel or a successful save closes the form, while a failed save preserves the visible draft. Attribute forms retain their allowed-value choices; only categories have parent selection and deletion.
 - Editor tabs: **General, Pricing, Tax, Inventory, Variants, Images, Shipping, SEO, Publication** (as defined in `02-ui-ux-design.md`).
 - Save draft, preview, publish, archive; server rejects incomplete/invalid tax classifications and illegal operations. Surface `409` concurrent-edit conflicts with reload/compare guidance.
 - Each sellable variant has a SKU and its own stock accounting. Image uploads use presigned object-storage URLs and server-side confirmation; track progress/failures.

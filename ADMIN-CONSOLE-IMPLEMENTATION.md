@@ -40,8 +40,8 @@ variant measurements against an older backend that lacks the V43 response contra
 
 Multi-variant product pages start without a selected option. Add to cart/Buy now
 show an accessible selection message and focus the selector before submitting.
-Catalog cards route to variant choice using the additive `variantCount` response
-field. Single-variant and saved-variant purchase flows remain compatible.
+Catalog cards offer a compact inline chooser using additive `variantCount` and
+`variantOptions` projections. Older responses without options link to the product page. Single-variant and saved-variant purchase flows remain compatible.
 
 V43 adds variant measurement overrides and order-line measurements. Checkout saves
 complete effective measurements for new lines; subsequent catalog edits cannot

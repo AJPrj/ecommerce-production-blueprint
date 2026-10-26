@@ -98,7 +98,11 @@ allowed in drafts, but product fallback applies only to single-SKU products.
 Multi-variant publication and new orders require each SKU's own measurements. Drafts may omit required measurements; publication requires
 complete positive integer weight/dimensions for every persisted variant. Optional
 packaging weight accepts integer zero. The catalog `ProductDto` adds `variantCount`
-to support explicit customer selection from product cards. No checkout/cart client
+and `variantOptions: [{id,name,sku,price,stock}]` for explicit inline selection
+from product cards. Options use effective prices and nonnegative on-hand minus
+reserved stock, batched with existing product mapping; no additional per-card
+request or migration is required. Primary SKU comes first, then name/ID order.
+Saved wishlist projections retain their exact SKU and an empty options list. No checkout/cart client
 price or measurement fields are introduced; the server resolves and snapshots
 complete effective measurements on new order lines through the existing APIs.
 

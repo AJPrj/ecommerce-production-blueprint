@@ -40,7 +40,8 @@ The owner approved PostgreSQL image storage when S3 is absent for a shop of appr
 ## 13. Explicit variant choice and per-SKU shipping measurements
 
 Multi-variant products require a customer choice before purchase, and catalog
-cards route to the chooser rather than silently adding the primary SKU. Each
+cards offer an inline chooser using compact batched variant/price/stock projections.
+Older responses without options route to the product page for selection. Each
 variant of a multi-variant product must have its own complete unit measurements
 and optional packaging weight/class. Product fallback is retained only for a
 single SKU. Publication validates every persisted variant, and checkout rejects
