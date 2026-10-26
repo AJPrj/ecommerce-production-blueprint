@@ -38,8 +38,9 @@ existing product descriptions or copy the reference merchant's text.
   renders as escaped plain text; attachments and HTML are unsupported.
 - Product list/detail/Admin/wishlist DTOs aggregate only approved reviews, in one
   batched query per projection batch. No approvals means zero rating/count. The
-  existing homepage Bestsellers heuristic now receives these real review values;
-  it remains a rating/review heuristic rather than sales-volume ranking.
+  homepage displays these real review values on product cards. Its Bestsellers
+  selection now ranks net paid delivered units rather than reviews; see
+  [Homepage merchandising](HOMEPAGE-MERCHANDISING.md).
 
 ## API contracts
 

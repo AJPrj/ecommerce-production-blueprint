@@ -42,6 +42,18 @@ A variant should own:
 
 Do not use product-level stock for a variant-driven catalog.
 
+### Homepage merchandising
+
+Featured and special products are ordered staff selections, each with up to 40
+saved choices and four currently eligible public products. Eligibility evaluates
+active, published, nondeleted products and available stock across every variant;
+special products also need an actual available-variant compare-at discount.
+Bestsellers rank net paid delivered units over 90 days across variants, subtract
+accepted shipment-allocated return units, and use verified package collection
+for COD. They do not rank ratings or infer sale quantities from refund amounts.
+Empty sections have no filler. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md)
+for exact ranking, discount, persistence and preview rules.
+
 ## 3. Pricing
 
 Price calculation should be deterministic.

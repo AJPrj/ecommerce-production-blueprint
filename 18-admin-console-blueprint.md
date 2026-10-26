@@ -91,6 +91,14 @@ Dashboard content should be **role-aware and actionable**. A finance user should
 - Publication requires name/category/SKU/positive price, description, primary image, active HSN/SAC classification with an effective GST rate, and positive unit weight plus all dimensions. Incomplete drafts may omit description/image/tax/shipping; zero stock remains valid. Missing-field summaries link to the appropriate editor sections.
 - Publishing/archiving is an explicit audited command, not a client-side toggle.
 
+Homepage merchandising is managed separately in `/admin/storefront/homepage` by staff with
+`catalog.write`. Staff search for saved products, maintain ordered featured and
+special selections with up to 40 choices per section, inspect eligibility reasons,
+and preview unsaved changes before a version-checked save. The first four eligible
+choices appear publicly; later choices are backups. Bestsellers are automatic net
+paid delivered units over 90 days. A stale save preserves the draft for reload and
+review. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md).
+
 ### 4.2 Inventory
 
 - Show on-hand, active reserved, available quantity, low-stock thresholds and history per variant.

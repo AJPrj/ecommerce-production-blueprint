@@ -73,6 +73,7 @@ The dedicated Admin/business console experience is defined in [PART XVIII — De
 | XV | Production Readiness Checklist |
 | XVI | Commercial Operations |
 | XVIII | [Dedicated Admin Console Blueprint](18-admin-console-blueprint.md) |
+| Homepage merchandising | [Selections, bestseller ranking and API contracts](HOMEPAGE-MERCHANDISING.md) |
 | Shipping integration | [Shiprocket HLD](Shiprocket-Integration-HLD.md) and [implementation progress](SHIPROCKET-IMPLEMENTATION.md) |
 
 ## Existing requirements incorporated

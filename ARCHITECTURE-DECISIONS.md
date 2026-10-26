@@ -51,3 +51,15 @@ catalog changes. Legacy/incomplete order lines retain the established correction
 and held-plan retry flow. Financial snapshots and created provider intent remain
 immutable. V43 adds nullable JSONB overrides/snapshots without inventing values
 for existing rows.
+
+## 14. Server-selected homepage merchandising
+
+PostgreSQL stores ordered, versioned featured/special selections, including backup
+choices. A dedicated public catalog projection evaluates the whole eligible
+catalog and returns up to four products per section. Bestsellers use net paid
+delivered quantities over 90 days across variants, with verified shipment-level
+COD collection and accepted return allocations. Current variant inventory and
+effective compare-at discounts govern display and its maximum discount claim.
+Unsaved Admin preview shares the same calculation without writing configuration.
+No rating heuristic, first-page slicing, fixed discount claim or filler supplies
+the landing sections. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md).

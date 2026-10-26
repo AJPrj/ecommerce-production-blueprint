@@ -50,6 +50,15 @@ DELETE /api/v1/customers/me/addresses/{id}
 
 ## 4. Catalog
 
+The implemented landing-page contract is `GET /api/v1/catalog/homepage`, returning
+server-selected `featured`, `bestsellers`, `special`,
+`specialMaxDiscountPercent` and `bestsellerWindowDays`. The corresponding
+`GET/PUT /api/v1/catalog/admin/homepage` and nonmutating
+`POST /api/v1/catalog/admin/homepage/preview` require `catalog.write`; PUT/POST
+also require CSRF. Saves replace ordered product-ID selections and check an
+optimistic version. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md) for
+payloads, eligibility, ranking, backups and conflict handling.
+
 ```text
 GET /api/v1/categories
 GET /api/v1/categories/{slug}

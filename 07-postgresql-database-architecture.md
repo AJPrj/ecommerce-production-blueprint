@@ -79,7 +79,17 @@ product_images
 attributes
 attribute_values
 product_variant_attributes
+homepage_configuration
+homepage_product_selections
 ```
+
+V45 adds the singleton homepage version and ordered featured/special references.
+Section/position and section/product uniqueness prevent duplicates; positions
+are bounded to 0-39. Saves advance the expected version, replace selections and
+append audit in one transaction. Retained soft-deleted products remain references
+that are omitted publicly. A partial delivered-shipment timestamp index supports
+the 90-day bestseller query; return allocations and payment/collection ledgers
+remain the source for net units. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md).
 
 ### Inventory
 
