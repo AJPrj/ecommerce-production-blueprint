@@ -58,6 +58,23 @@ Docker images need no Shiprocket credentials at build time. Keep runtime secrets
 
 ## Schema and API
 
+- `V47__shiprocket_pickup_schedule.sql`: nullable explicit scheduled pickup date
+  and observation time on forward bookings, bounded schedule evidence on the
+  tracking inbox, and an index for pending date queries. No generated timestamp
+  or historical date is guessed during migration.
+- `GET /api/v1/admin/operations/orders?pickupToday=true` matches pending pickups
+  against the current India date before SQL pagination and combines with existing
+  filters. Prepared shipments with active bookings qualify; cancelled/delivered
+  orders and cancelled/completed shipments do not. Queue shipment summaries add
+  nullable `pickupScheduledDate` as an ISO date; the UI and page CSV expose it.
+- Explicit `Booked_date`, `pickup_booked_date` or `pickup_scheduled_date` evidence
+  is captured from verified provider reads/pickup responses and authenticated
+  tracking callbacks. Offset timestamps convert to India time. Schedule metadata
+  never dispatches shipments or consumes stock; callbacks retain identity checks
+  and a strictly newer observation fence. Cancellation, completed transport and
+  a reschedule without a known date clear pending schedule evidence. Dashboard
+  lookups that omit the date preserve earlier verified schedule evidence.
+
 - `V33__seed_product_gallery_images.sql`: restored original catalog gallery migration; its applied checksum is preserved.
 - `V34__dashboard_item_cancellation.sql`: pending cancellation quantities, provider attempt evidence, one unresolved request per order and fenced recovery.
 - `V35__dashboard_reverse_orders.sql`: independent reverse identities, immutable intent, leases, retry state and reverse tracking mappings.

@@ -66,6 +66,31 @@ never enter delivered quantity and need no additional cancellation subtraction.
 Test/demo sales are included if they are in the active database; no fabricated
 sales or rating-based fallback fills an empty section.
 
+## Editable testimonials
+
+**Admin > Storefront > Homepage** also manages up to 40 ordered testimonials.
+Add, edit, remove or move stories, then use **Preview changes** and **Save
+homepage**. Each story has a required customer name, comment and whole-number
+rating from 1 to 5; optional customer details/location, purchased item and avatar;
+and a **Show Verified Buyer tag** checkbox. Staff attest to the purchase when
+enabling that badge. This editorial setting is independent of product reviews
+and does not calculate or change product ratings.
+
+Avatars support the existing validated image upload flow, HTTP/HTTPS image
+URLs or safe same-origin asset paths. Missing or failed images display customer initials. Uploaded database
+images become public when referenced by a saved testimonial; an unsaved Admin
+preview does not publish them. Removing the reference withdraws public access
+unless an active product or another saved testimonial still uses the image.
+External storage images retain their existing provider access behavior.
+
+The storefront uses the saved order, individual ratings and badge choices with
+the existing responsive carousel design. Hover or keyboard focus pauses automatic
+rotation. An empty list hides the section; it never substitutes sample stories.
+Migration V46 carries the four previously hardcoded cards into editable records.
+Avatar uploads and homepage saving show separate progress and failure states;
+save/preview is disabled during an in-progress upload. Older backends show an unavailable
+notice for testimonial editing while product configuration remains usable.
+
 ## Complete collection listings
 
 Each nonempty homepage section has a **View all** link to its own collection:
@@ -98,12 +123,12 @@ All paths below begin `/api/v1/catalog`.
 | GET `/homepage` | Public server-calculated homepage projection |
 | GET `/collections/{collection}` | Public complete collection with server-side filtering, sorting and pagination |
 | GET `/admin/homepage` | `catalog.write`; saved configuration, current selection eligibility and preview |
-| PUT `/admin/homepage` | `catalog.write` + CSRF; replace both ordered selections with optimistic version checking and an audit event |
+| PUT `/admin/homepage` | `catalog.write` + CSRF; replace ordered selections and supplied testimonials with optimistic version checking and an audit event |
 | POST `/admin/homepage/preview` | `catalog.write` + CSRF; calculate unsaved choices without configuration, version or audit writes |
 
 The public response contains `featured`, `bestsellers` and `special` arrays of the
 existing product DTO, plus `specialMaxDiscountPercent` and
-`bestsellerWindowDays` (90). Products retain real approved review summaries and
+`bestsellerWindowDays` (90), plus an ordered `testimonials` array. Products retain real approved review summaries and
 compact variant options for the existing card selector and wishlist flow.
 Unselected multi-variant products still require an explicit variant choice.
 
@@ -120,11 +145,24 @@ invalid pagination or price ranges return 400. Public responses use
 `Cache-Control: no-store`. No additional migration or configuration is needed;
 rebuild/restart the backend and refresh the matching frontend.
 
-Admin configuration contains `version`, `featured`, `special` and `preview`.
+Admin configuration contains `version`, `featured`, `special`, `testimonials` and `preview`.
 Each selection is `{productId, product, eligible, reason}`; `product` can be null
 for a retained deleted or unavailable reference. The preview has the same shape
 as the public projection. Save and preview accept
 `{version, featuredProductIds: [UUID, ...], specialProductIds: [UUID, ...]}`.
+They may also supply `testimonials: [{id, name, location, image, rating, quote,
+productMention, verifiedBuyer}, ...]`. Omitting `testimonials` or sending null
+preserves the saved list, including during preview; an empty array clears it on
+save. IDs are unique nonblank strings up to 80 characters, names up to 160,
+comments up to 4,000, details/purchased items up to 240 and image URLs up to 2,048.
+Optional blank fields normalize to null. `verifiedBuyer` is a required boolean.
+Same-origin avatar paths are supported by the backend, and database-media paths
+must reference an existing uploaded image. The editor applies the same safe
+same-origin and HTTP/HTTPS URL rules without credentials.
+Unsafe protocols, duplicate IDs, null entries, invalid ratings and more than 40
+stories return 400. Products and testimonials share one version and transaction;
+a stale 409 cannot partially replace either list. Preview validates all supplied
+stories without publishing them, advancing the version or creating audit events.
 `version` is a required nonnegative integer. Both selections are complete
 replacements: send an empty array to clear a section. Unknown new product IDs,
 duplicates within a section and more than 40 choices return 400. A stale save
@@ -151,7 +189,26 @@ make the first choices explicitly. Restart the matching backend to apply V45
 before using the updated storefront or Admin page, then refresh the frontend.
 No new provider credentials or environment settings are required.
 
+Migration `V46__homepage_testimonials.sql` adds ordered testimonial records and
+preserves V45 product selections/version. Restart the updated backend to apply
+V46, then refresh the frontend before editing testimonials. No additional
+environment configuration is required.
+
 ## Verification
+
+Testimonial verification on 2026-10-30 passed 37 PostgreSQL integration tests
+across testimonials, homepage/collections, database media and migration upgrade
+preservation. Scoped formatting/check, Java main/test compilation and `bootJar`
+passed. The isolated database was removed afterward; external providers and email
+remained disabled. The migration test preserves existing V45 selections/version.
+
+Frontend verification passed 65 tests across six suites, covering all editor
+fields, order/removal, validation, preview/save/conflict recovery, image uploads,
+public rendering, avatar fallback and carousel behavior. TypeScript/Vite build
+passed. Scoped lint has zero errors and four existing effect warnings; existing
+Sass notices remain. Browser visual acceptance is unverified because no browser
+connection was available. Restart the updated backend for V46 and refresh the
+frontend to use the feature.
 
 Complete collection verification on 2026-10-26 passed 32 PostgreSQL integration
 tests across the homepage/collections and variant/catalog suites, including six

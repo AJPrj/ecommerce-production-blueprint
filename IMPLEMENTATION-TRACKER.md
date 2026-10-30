@@ -1,6 +1,45 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-26
+Last updated: 2026-10-30
+
+### Admin orders scheduled for pickup today - 2026-10-30
+
+- `/admin/orders` adds **Shiprocket pickup today**, combined with search,
+  order/payment states and placed-date filters. The selection persists as
+  `pickupToday=true`, changing it resets pagination, and Reset filters clears it.
+  Shipping summaries and the page CSV include the saved scheduled pickup date.
+- The additive operations query selects pending pickups for today's date in
+  `Asia/Kolkata` before SQL pagination. Active bookings on prepared shipments
+  qualify; cancelled/completed shipments, cancelled/delivered orders and unknown
+  dates do not. Historical shipping references remain visible without duplicating
+  orders. Existing authorization remains in force.
+- V47 adds nullable booking schedule dates/observation times, minimal tracking
+  inbox evidence and an index. Verified explicit provider dates are captured from
+  assisted responses, dashboard reads and authenticated callbacks; generated
+  timestamps never substitute for a scheduled date. Stale callbacks and remote
+  reads cannot overwrite newer observations. Schedule metadata cannot dispatch
+  stock. Existing records await explicit provider evidence rather than a guessed
+  historical backfill.
+- Frontend verification passed **42 tests across two suites** covering operations
+  workflows and page CSV, plus the TypeScript/Vite production build. Scoped lint
+  has zero errors and three existing dashboard React warnings. The first sandbox
+  test run failed to start one worker; the serial fork rerun passed outside the
+  sandbox. Existing Sass notices remain. Browser visual verification was
+  unavailable because no connected browser exists.
+- Backend verification is in progress against an isolated local database.
+  Both READMEs and Admin/shipping documentation describe the contract. Rebuild
+  and restart the matching backend to apply V47, then refresh the frontend.
+  No new environment settings or production deployment are required.
+
+### Configurable homepage testimonials - 2026-10-30
+
+- **Admin > Storefront > Homepage** now manages up to 40 ordered customer testimonials alongside existing product selections. Each story supports customer name, details/location, whole-number 1–5 rating, an optional Verified Buyer badge, comment, purchased item and an uploaded or linked avatar. Add/remove/up/down controls, field validation, upload progress/cancellation, unsaved-change warnings, preview and explicit save use the existing homepage workflow. Staff attest to the badge; editorial stories do not affect product review ratings.
+- Public/configuration/preview responses add `testimonials`; supplied save/preview lists are validated as complete replacements, while omitted/null lists preserve saved stories for existing clients. Product selections and testimonials share optimistic version checking, transactional persistence and privileged audit. Stale saves cannot partially replace content. Unsaved previews publish no configuration or image references. Existing authorization, CSRF and no-store behavior remains in force.
+- Forward-only **V46** adds ordered testimonial records and carries the four existing storefront cards into editable data without changing saved Featured/Special choices or their version. Existing validated database/S3 uploads are reused. Database avatars become public only through saved testimonial or existing active-product references. Safe same-origin and HTTP/HTTPS references are supported; broken/missing avatars show initials.
+- The storefront uses the same homepage request and retains the responsive testimonial carousel styling. Individual ratings control filled stars, the Verified Buyer flag controls its tag, empty lists hide the section, and list changes cannot leave the viewport beyond the last slide. Keyboard focus and hover pause rotation; long text wraps and failed images fall back to initials. The editor reuses this component for preview. An older backend shows an editing-unavailable notice while product saves remain compatible.
+- Final backend verification passed **37 PostgreSQL integration tests across four suites**: testimonials (9), existing homepage/collections (22), database media (5) and upgrade preservation (1), with zero failures/errors/skips. Scoped formatting/check, main/test compilation and `bootJar` passed for the final source. Tests used an isolated local database removed afterward, with external providers/email disabled; a read-only check confirmed no testimonial test databases remain.
+- Verification passed **65 frontend tests across six suites**: storefront testimonials/homepage/catalog navigation (23), homepage administration (17), avatar uploads (6) and URL/field validation (19). The TypeScript/Vite production build passed. The default thread runner stalled and a first Admin run hit four five-second timeouts while typing long text; the documented fork runner and direct field-change simulation completed all checks without increasing timeouts or weakening assertions. Scoped lint has zero errors and four existing effect warnings. Existing Sass notices remain. Browser discovery found no available connection, so visual acceptance remains unverified. Read-only diff checks found no whitespace errors in either application.
+- Both application READMEs and [Homepage merchandising](HOMEPAGE-MERCHANDISING.md) describe contracts and usage. Rebuild/restart the matching backend to apply V46, then refresh the frontend. No new environment settings, application-data migration execution or production deployment was performed during implementation.
 
 ### Complete Featured, Bestseller and Special collections - 2026-10-26
 
