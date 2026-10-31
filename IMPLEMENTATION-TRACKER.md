@@ -2,6 +2,68 @@
 
 Last updated: 2026-10-31
 
+### B2C invoices and reviewed credit notes - 2026-10-31
+
+- Added invoice preview and final packing issuance, authenticated customer/staff
+  PDF downloads, immutable PostgreSQL snapshot/PDF/hash archives, Indian
+  financial-year numbering and duplicate/concurrent issuance protection (V49).
+  Documents use the supplied Eye on Bay artwork and an embedded OFL font.
+- Added separate customer SMTP attachment delivery with durable transactional
+  outbox claims, bounded retries, failure visibility and audited staff resend.
+  Provider acceptance is not proof of inbox delivery. No live email was sent.
+- Added Admin-reviewed source-linked cancellation/accepted-return credit notes,
+  preserving original unit tax/price/delivery shares and independent refunds.
+  New adjustments save unit offsets; ambiguous legacy sources fail closed.
+  Customer credit-note downloads are supported; automatic credit-note email and
+  GST return adjustment/reporting are outside this initial implementation.
+- Enabled fulfillment requires the invoice before carrier handover and reviewed
+  cancellation credits when issued quantities change. Later carrier scans do
+  not create or backdate invoices. Operators must enforce the physical packing
+  check in the Shiprocket dashboard workflow.
+- React order confirmation/tracking and Admin order details expose availability,
+  download, preview, issuance, email status/resend and reviewed credit notes.
+  Billing defaults to saved delivery address; this version supports one regular
+  GST seller and one final invoice per order, without B2B/export/composition or
+  separate billing-address entry.
+- Issuance defaults off (`INVOICE_ENABLED=false`, tax scheme `UNCONFIRMED`);
+  invoice email defaults off separately. Real legal identity/GSTIN, approved
+  samples/HSN/tax/shipping treatment, series opening, regulatory applicability,
+  retention and provider/packing acceptance remain release gates. No deployment
+  or live account/provider configuration was changed.
+- Setup, API roles, storage/retry behavior and operational limitations are in
+  [Invoicing](INVOICING.md). Verification results are recorded below when complete.
+
+### Hosted recovery email diagnosis and safe delivery logs - 2026-10-31
+
+- The owner reported an accepted forgot-password request without receiving email
+  on the hosted Render storefront, confirmed a Free Java backend and a customer
+  account, and supplied a configuration using SMTP port 587. Render documents
+  that Free services block this port. Brevo documents alternate port 2525.
+  The proposed deployment fix is `SMTP_PORT=2525` with existing required STARTTLS
+  on the Java backend's Render environment, followed by save/redeploy. Hosted
+  delivery remains unverified until the owner applies/tests that configuration.
+  No provider, database, account or deployment settings were changed here.
+- Read-only public checks confirmed the hosted forgot-password page and proxied
+  auth/CSRF route return 200. No reset was submitted and no live mail was sent.
+  Generic success means request acceptance; existing unknown/inactive/staff-only
+  eligibility rules and the three-per-mailbox/30-minute suppression still apply.
+- Recovery failure logs now include fixed stage/reason categories for connection
+  timeout/failure, authentication, invalid email, provider rejection, database,
+  send, queue and unknown failures. Existing delivery counters remain compatible;
+  new bounded failure and aggregate skipped-outcome counters distinguish failure
+  stages without provider exception text, addresses, credentials or reset links.
+  Public responses and token lifecycle are unchanged. Backend README and
+  [recovery troubleshooting](PASSWORD-RECOVERY.md#accepted-request-but-no-email)
+  document the hosted settings and operational diagnosis.
+- Verification passed **44 tests across six suites**: failure classifier (8),
+  recovery integration/privacy (13), recovery configuration (5), account (9),
+  security failures (8) and migration upgrade (1), with zero failures/errors/skips.
+  Scoped formatting/check, compilation and `bootJar` passed. An initial compile
+  exposed runtime-only mail-provider types in the classifier; using standard
+  Jakarta/Spring exception types fixed compilation without adding dependencies.
+  The disposable local database was removed after the run; mail was mocked and
+  other providers disabled. No frontend, schema or dependency change was needed.
+
 ### Customer forgot-password and email recovery - 2026-10-31
 
 - The customer sign-in dialog now exposes **Forgot password?**. Public
@@ -190,7 +252,7 @@ Implemented in the current tree:
 Still required before Stage 1 can be called complete:
 
 - [ ] Admin/finance validate representative GST-inclusive outputs; real product classifications and effective-dated tax rates still need approved configuration before production checkout can succeed. The 5%, 12%, 18% rates and HSN/SAC strings in the separate demo DB are synthetic only.
-- [ ] Implement invoice/credit-note document generation and associated tests after seller identity, financial-year numbering, dispatch timing, and sample output are approved. Checkout/order summaries are not tax invoices.
+- [x] Implement gated B2C invoice and reviewed source-linked credit-note document generation, immutable archives, downloads, delivery retries and associated tests (V49). Production seller identity, series opening, tax/finance-approved samples and operational handover acceptance remain required; checkout/order summaries are not tax invoices.
 - [ ] Exercise a real Razorpay Test Mode account end to end, including configured webhook delivery and provider timeout/retry behavior. Test credentials/dashboard access are not available in the repository.
 - [x] Connect reservation consumption to the Stage 2 dispatch command, with partial quantities and idempotent/concurrent dispatch coverage. Production carrier acceptance remains outstanding.
 - [x] Add API and React flow tests for COD, online success, decline/retry, refresh recovery, stock conflicts, changed totals, and order confirmation. React tests exercise the customer components with mocked API/provider boundaries; real-provider delivery remains a separate gate.
@@ -421,7 +483,7 @@ Status: **Not started**
 ## Launch blockers
 
 - Admin/tax validation of GST calculations and real product classifications/rates remain unresolved. Synthetic demo fixtures and the generic, automatically approved normal-profile V32 seed mappings do not establish correct product HSN assignments or business approval.
-- Seller legal name/address/GSTIN and approved invoice numbering/sample outputs are missing; document generation cannot yet be verified.
+- Real seller legal name/address/GSTIN and approved invoice numbering/sample outputs remain required before enabling document issuance. Automated sample generation does not establish production tax/finance acceptance.
 - Shipping follows a provisional composite-supply rule with proportional line allocation. Confirm it against actual seller/carrier contracts before production use.
 - Production hosting, secret management, notification provider, and operational owner are undecided.
 - Privacy/PII retention, deletion requirements, and their accountable owner are not decided.

@@ -115,3 +115,61 @@ test results in the implementation tracker.
 
 The token, response and session controls follow the
 [OWASP password recovery guidance](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html).
+
+## Accepted request but no email
+
+The green confirmation means the API accepted a request. SMTP delivery happens
+asynchronously; it is not proof of mailbox delivery. Unknown, inactive,
+staff-only or ambiguous accounts receive the same response without email.
+The same response also applies after the three-request mailbox limit within a
+fixed 30-minute window. Allow the window to pass before repeated testing.
+
+For the hosted Render deployment, edit the **Java backend service's Environment**
+settings, then save/redeploy. The workstation's environment file does not update
+Render's process environment. The deployed frontend reset URL is:
+
+```dotenv
+PASSWORD_RESET_ENABLED=true
+PASSWORD_RESET_URL=https://react-ui-ecommerce-app-latest.onrender.com/reset-password
+```
+
+[Render's Free service documentation](https://render.com/docs/free) lists blocked
+outbound SMTP ports 25, 465 and 587. If the Java backend uses the Free tier and
+port 587, this is a likely connection failure. Brevo documents port 2525 as an
+alternative for restrictive hosting networks in its
+[SMTP troubleshooting guide](https://help.brevo.com/hc/en-us/articles/115000188150-Troubleshooting-Issues-with-Brevo-SMTP).
+Try the following settings on the backend and retain the existing SMTP login,
+SMTP key and verified sender:
+
+```dotenv
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=2525
+SMTP_AUTH=true
+SMTP_STARTTLS_ENABLED=true
+SMTP_STARTTLS_REQUIRED=true
+```
+
+Reachability from this specific deployed service still needs verification; a
+local connection test does not prove that Render can connect. If port 2525 is
+also unavailable, an explicit Brevo HTTPS API adapter or a host with SMTP access
+is a separate option. This application currently sends through SMTP.
+
+In the backend's Render logs, search for `Password recovery operation failed`.
+Failure entries include fixed `stage` and `reason` values, such as
+`stage=email_delivery reason=connection_timeout` or
+`stage=email_delivery reason=authentication_failed`. Reasons also distinguish
+connection failures, invalid email, provider rejection, database failures,
+generic send failure and queue capacity, with `other` for unrecognized failures.
+No exception messages or stack traces enter these recovery log entries.
+Existing `commerce.password.reset.delivery{result}` counters are preserved;
+`commerce.password.reset.failure{result,stage,reason}` adds bounded diagnostics.
+`commerce.password.reset.outcome{result}` separately counts suppressed mailbox
+limits, absent/ambiguous account snapshots and ineligible accounts. These are
+aggregate operator metrics; public responses do not reveal those distinctions.
+
+In **Brevo > Transactional > Logs**, filter by the recipient and request time.
+No Brevo event suggests the message was skipped or could not reach/authorize
+with the relay; a delivered, blocked, deferred or bounced event distinguishes
+provider/mailbox handling. Check the configured SMTP login and SMTP key,
+provider-verified sender and remaining email credits when indicated by those
+logs. Do not expose provider responses, credentials or reset links publicly.

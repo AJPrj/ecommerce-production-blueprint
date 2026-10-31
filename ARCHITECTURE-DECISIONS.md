@@ -75,3 +75,15 @@ does not persist its bearer token in an outbox; restart or delivery failure
 requires another request. This is a limited, explicit exception to durable
 notification processing, leaving commercial order-email outbox behavior intact.
 See [Customer password recovery](PASSWORD-RECOVERY.md) for contracts and setup.
+
+## 16. Immutable customer tax documents
+
+The initial single-seller B2C flow issues one final packing invoice from saved
+unit commercial allocations, before courier handover. PostgreSQL atomically
+stores the annual sequence, immutable snapshot, bounded PDF bytes/hash and
+optional customer-email intent. This small-store storage choice avoids a
+database/object-store dual write; backups include document bytes. Downloads and
+resends use the archive. Source-linked full-unit credit notes preserve original
+documents and remain separate from payment refunds. Issuance stays disabled
+until actual seller identity, regular GST scheme, numbering and business
+acceptance are supplied. See [Invoicing](INVOICING.md).
