@@ -27,6 +27,13 @@ Support:
 - Optional MFA for staff
 - Login throttling
 
+Customer password recovery uses expiring, single-use hashed tokens, generic
+request responses, asynchronous SMTP delivery, public-endpoint throttling,
+trusted reset URLs and authorization-version session revocation. Its configured
+sender can reuse the existing Brevo SMTP setup. See
+[Customer password recovery](PASSWORD-RECOVERY.md) for the implemented contract
+and the explicitly non-durable recovery-email delivery limitation.
+
 Password storage:
 
 - Use a modern adaptive password hashing algorithm such as Argon2id or bcrypt with an appropriate cost.

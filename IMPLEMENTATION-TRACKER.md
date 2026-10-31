@@ -1,6 +1,51 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-30
+Last updated: 2026-10-31
+
+### Customer forgot-password and email recovery - 2026-10-31
+
+- The customer sign-in dialog now exposes **Forgot password?**. Public
+  `/forgot-password` and `/reset-password` pages cover generic request success,
+  resend, validation, pending/error/retry, password confirmation, invalid links
+  and successful return to sign-in. They reuse the storefront auth styling and
+  shared CSRF client. Fragment tokens remain in component memory and are removed
+  from the URL; replacement links clear the prior form, and successful recovery
+  clears local authentication even after navigation away.
+- Public CSRF-protected recovery APIs use active customer accounts, trusted reset
+  URLs, bounded asynchronous SMTP, shared PostgreSQL abuse limits, cryptographic
+  single-use 30-minute tokens stored only as hashes, row locking and
+  `auth_version` session revocation. Snapshot checks prevent queued requests from
+  issuing a usable link after another password/version change. Forward-only
+  `V48` adds bounded throttle slots and at most one token per customer. Ordinary
+  authenticated password changes also remove outstanding recovery credentials.
+- Existing Brevo-compatible `SMTP_*` settings and the Admin sender are reused.
+  Recovery defaults to disabled; set `PASSWORD_RESET_ENABLED=true` and the
+  trusted `PASSWORD_RESET_URL`, optionally `PASSWORD_RESET_EMAIL_FROM`, in the
+  backend environment. The workspace launcher reads
+  `java-ecommerce-app_latest.env`. Restart the backend for V48/configuration and
+  refresh the frontend. Live configuration and delivery were not changed or
+  exercised.
+- Recovery email is explicitly replaceable and non-durable: queue overload,
+  restart or SMTP failure can require another request. Fixed failure metrics/log
+  codes omit secrets and personal data. Commercial order-notification outbox
+  behavior remains intact. The architecture decision, API/security/database
+  notes, both READMEs and [recovery setup/contracts](PASSWORD-RECOVERY.md)
+  document the behavior and delivery/proxy limitations.
+- Frontend verification passed **66 tests across four suites**; the final
+  recovery-form refactor passed all **22 recovery tests** again. Scoped auth/API
+  lint has zero errors; the router retains existing Fast Refresh warnings. The
+  TypeScript/Vite production build passed with existing Sass notices.
+- Backend verification passed **36 tests across five suites**: recovery API,
+  concurrency and failure scenarios (13), configuration/SMTP sender (5), existing
+  customer account (9), security failures (8) and migration upgrade (1), with zero
+  failures/errors/skips. Initial verification exposed two rate-limit failures
+  caused by modifying Spring's read-only exception headers; returning explicit
+  response headers fixed both, and the final run passed all cases without
+  weakening assertions. Scoped Spotless, compilation and `bootJar` passed using
+  isolated output/cache and a temporary local PostgreSQL database removed after
+  verification. Application data and live provider settings were untouched.
+- Browser visual acceptance and live Brevo delivery remain unverified because
+  no browser is connected and automated tests use mocked mail delivery.
 
 ### Admin orders scheduled for pickup today - 2026-10-30
 
@@ -26,8 +71,17 @@ Last updated: 2026-10-30
   test run failed to start one worker; the serial fork rerun passed outside the
   sandbox. Existing Sass notices remain. Browser visual verification was
   unavailable because no connected browser exists.
-- Backend verification is in progress against an isolated local database.
-  Both READMEs and Admin/shipping documentation describe the contract. Rebuild
+- Backend verification passed **67 distinct cases across six suites**. The initial
+  complete run passed 58 tests for order filtering, Shiprocket HTTP/date parsing,
+  tracking, provider workflows and migration upgrade. After the final worker
+  observation fence, the affected provider workflow suite passed all 32 cases,
+  including nine added response/recovery race and explicit/omitted-date checks,
+  with zero failures/errors/skips. Scoped formatting/check, main/test compilation
+  and `bootJar` passed. A full rerun was interrupted under host memory pressure;
+  the final focused run used a bounded heap and one cached Spring context.
+  Temporary databases from both completed and interrupted runs were removed.
+  External providers/email stayed disabled outside deterministic test mocks.
+- Both READMEs and Admin/shipping documentation describe the contract. Rebuild
   and restart the matching backend to apply V47, then refresh the frontend.
   No new environment settings or production deployment are required.
 

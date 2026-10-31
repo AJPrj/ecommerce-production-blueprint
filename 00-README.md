@@ -74,6 +74,7 @@ The dedicated Admin/business console experience is defined in [PART XVIII — De
 | XVI | Commercial Operations |
 | XVIII | [Dedicated Admin Console Blueprint](18-admin-console-blueprint.md) |
 | Homepage merchandising | [Selections, bestseller ranking and API contracts](HOMEPAGE-MERCHANDISING.md) |
+| Customer password recovery | [Reset flow, Brevo configuration and API contracts](PASSWORD-RECOVERY.md) |
 | Shipping integration | [Shiprocket HLD](Shiprocket-Integration-HLD.md) and [implementation progress](SHIPROCKET-IMPLEMENTATION.md) |
 
 ## Existing requirements incorporated

@@ -59,6 +59,12 @@ email_verification_tokens
 password_reset_tokens
 ```
 
+The implemented customer recovery schema is added by `V48` as
+`customer_password_resets`: one hashed, expiring token per user, bound to the
+current authorization version. `password_reset_throttles` uses bounded hashed
+slots for shared request limits. No raw reset token or email payload is stored
+in PostgreSQL. See [Customer password recovery](PASSWORD-RECOVERY.md).
+
 ### Customer
 
 ```text

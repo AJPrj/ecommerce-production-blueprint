@@ -37,6 +37,14 @@ GET    /api/v1/auth/me
 
 Forgot-password must return a generic response to prevent account enumeration.
 
+The implemented customer recovery contract uses `POST /auth/forgot-password`
+with `{email}` (`202` with a generic message) and `POST /auth/reset-password`
+with `{token,newPassword}` (`204`). Both retain CSRF protection. Email links
+open the configured frontend `/reset-password` page with a token fragment.
+See [Customer password recovery](PASSWORD-RECOVERY.md) for configuration,
+eligibility, expiration, throttling and delivery limitations. Other auth
+endpoints in the design list still require implementation verification.
+
 ## 3. Customer
 
 ```text

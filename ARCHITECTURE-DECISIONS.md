@@ -63,3 +63,15 @@ effective compare-at discounts govern display and its maximum discount claim.
 Unsaved Admin preview shares the same calculation without writing configuration.
 No rating heuristic, first-page slicing, fixed discount claim or filler supplies
 the landing sections. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md).
+
+## 15. Customer recovery through existing SMTP
+
+Customer password recovery reuses the configured SMTP provider with a dedicated
+sender, a trusted frontend reset URL, hashed single-use PostgreSQL tokens and
+authorization-version session revocation. Request throttles persist bounded
+hashed slots across instances. A bounded asynchronous queue prevents SMTP timing
+from revealing account existence. Short-lived recovery email is replaceable and
+does not persist its bearer token in an outbox; restart or delivery failure
+requires another request. This is a limited, explicit exception to durable
+notification processing, leaving commercial order-email outbox behavior intact.
+See [Customer password recovery](PASSWORD-RECOVERY.md) for contracts and setup.
