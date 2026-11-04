@@ -1,6 +1,263 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-10-31
+Last updated: 2026-11-04
+
+### Critical commerce/session controls and reliability automation - 2026-11-04
+
+- The owner authorized continuous local automation/stability milestones without
+  routine batch approval. Exact manual outcomes, partial mappings and separate
+  human/provider/operational acceptance remain distinct.
+- Fixed fractional/null promotion preview validation; hidden draft/archived product
+  purchase and public-read bypasses; concurrent native/Redis cart updates; custom
+  controller login bypassing the two-session limit; cross-customer/product review
+  drafts and delayed commands; coupon anonymous authentication entry points; missing
+  Redis HTTP-session activation; and a confirmed coupon-create read overwriting the
+  next draft. Redis failures return a generic503 without native-session fallback.
+- Redis sessions explicitly use the existing versioned namespace and SESSION
+  cookie. Previously issued JSESSIONID cookies require sign-in after rollout.
+  Cart keys remain advisory and expire with session activity; durable stock/orders
+  stay in PostgreSQL. The two-session registry remains local to one instance, so
+  distributed enforcement is still a gap. No migration or provider activation.
+- Fresh sequential regression passed646/646 Java and554/554 React tests, with zero
+  failures/errors/skips and successful owned PostgreSQL16/Redis cleanup. Actual
+  Redis serialization/key expiry and pre-commit PostgreSQL connection termination
+  now have passing regression evidence. Earlier application and fixture failures
+  remain preserved; see [validation](../qa/automation/VALIDATION.md) and the
+  [defect observations](../qa/automation/artifacts/critical-controls-20261104-observations.md).
+- Expanded real HTTP/browser checks and a separate-target binary-media backup
+  restore drill are still under verification. Source planning maps359/546 cases
+  partially with187 unmapped; this is not a final consolidated pass. Remaining
+  work includes multi-worker/restart drills, coherent shipping/return/role journeys,
+  remaining functional assertions and real-provider/business release gates.
+
+### P0 GST and administration assertions - 2026-11-04
+
+- Added 18 backend integration tests and 31 reviewed method mappings for all
+  14 previously unmapped P0 GST IDs and 14 P0 administration IDs. Specific
+  assertions cover dates/concurrency/arithmetic/approval, role/CSRF no-effects,
+  catalog stale/publication guards, policy bounds and audit privacy/filtering.
+  Existing deletion, hierarchy, identity and strict tax-gate methods were reviewed.
+- The fresh disposable PostgreSQL16/Redis suite passed 601/601 with zero failures,
+  errors or skips and successful cleanup. The first 596/601 execution is retained:
+  five new-test failures were corrected for a required audit fixture field,
+  JPA-to-JDBC flush visibility and V32's seeded policy approval. No application
+  code, migration, provider configuration or deployment changed in this batch.
+- The [current evidence review](../qa/automation/artifacts/ecommerce-review-20261104085350-fdcf091e/REPORT.md)
+  passes 369 assertion groups and 275/546 partial case subsets, leaving 271
+  unmapped. Separate 545 React/165 local API-browser/17 hosted executions are
+  retained with their original dates; those layers were not rerun for this batch.
+  All original manual statuses remain Not Run and external acceptance is empty.
+- Clarified the explicit category/rate/current-policy approval workflow. V32
+  SYSTEM/fallback approvals can satisfy runtime checks and need provenance review;
+  they are not actual finance acceptance. The provisional SGST-remainder wording
+  differs from TaxEngine/TAX-008's CGST odd-paise behavior. Neither calculation nor
+  historical snapshots changed; the release checklist records business resolution.
+- Next: remaining P0 authentication, cart, promotions and complete E2E journeys,
+  plus the explicit browser/normal-profile-checkout and expected-outcome gaps in
+  [QA validation](../qa/automation/VALIDATION.md) and
+  [assertion gaps](../qa/automation/ASSERTION-GAPS.md). Earlier entries are historical.
+
+### P0 return and inventory assertions - 2026-11-04
+
+- AUTO-DEF-012: inventory adjustment JSON now validates bounded whole quantities
+  before exact integer conversion. Fractional delta/stock can no longer silently
+  truncate. Accepted whole-number commands retain their saved legacy Integer
+  fingerprint; absolute targets preserve reservations and require current revision.
+  No migration/provider setting changed and no deployment occurred.
+- Added 15 tests and strengthened three existing return tests: transactional
+  stock/audit rollback, idempotency/key/revision/bounds/concurrent adjustments,
+  role/CSRF/variant denial, inspection replay and frozen pending-refund controls.
+  Reviewed existing allocation, request-race, deletion and paise tests separately.
+- The fresh disposable backend suite passed 583/583 with zero failures/errors/
+  skips and successful PostgreSQL16/Redis cleanup. Before-fix standalone evidence
+  retains one failed/one passed test; the first full run retains its 582/583 result
+  caused by a missing required cancellation body in the new foreign-owner fixture.
+  The corrected valid-body request preserves 404 and exact no-write assertions.
+- The [current evidence review](../qa/automation/artifacts/ecommerce-review-20261104031537-394a49c5/REPORT.md)
+  passes 338 assertion groups and 247/546 partial case subsets, leaving 299 unmapped.
+  All 11 previously unmapped P0 returns and 10 P0 inventory IDs now have assertion
+  mappings. Separate 545 React/165 API-browser/17 hosted executions are retained;
+  they were not rerun for this backend-only correction. Human/provider/operational
+  acceptance and original manual execution statuses remain unchanged.
+- Process restart/replay, full browser/admin journeys and provider acceptance
+  remain separate. A new support object reads the durable command from PostgreSQL;
+  it does not simulate an application restart. Next: remaining unmapped P0 GST
+  administration and general administration, plus complete expected-outcome review.
+  See [QA validation](../qa/automation/VALIDATION.md) and
+  [assertion gaps](../qa/automation/ASSERTION-GAPS.md) for exact scope.
+
+### Closed-tab and payment-state recovery - 2026-11-04
+
+- AUTO-DEF-011: checkout restoration now routes captured, expired, review-state
+  and authorized orders to their current details and clears saved retry keys.
+  Pay actions re-read the owned order before SDK load and check reference,
+  currency and amount. Failed reads do not open payment; backend state checks
+  still arbitrate races after the browser read. No Java/API/migration changed.
+- Seven new component regressions failed before correction and passed afterward.
+  The full React suite passed 545/545 on November 3; the November 4 disposable run
+  passed 165/165 API/browser checks (143 API, 22 Chromium), including all five new
+  recovery journeys on their first complete execution. Owned process and
+  PostgreSQL16/Redis cleanup passed. Production build/type checks passed.
+- Browser evidence covers same-tab online refresh, actual closed-tab/re-login/
+  history recovery after signed sandbox capture, pre-payment state recheck,
+  scheduler-driven expiry and another-customer replacement tab. Original money,
+  reservation, movement and commercial snapshots remain explicit assertions.
+- The [current review](../qa/automation/artifacts/ecommerce-review-20261104025003-f5525f0d/REPORT.md)
+  passes 317 assertion groups. It combines this batch's 545 React/165 local checks
+  with retained 568 Java/17 hosted executions. Coverage stays 226/546 partial and
+  320 unmapped: this batch strengthens existing IDs. Human/provider/operational
+  acceptance remains unrecorded; the adapter/signed webhook do not establish
+  real Razorpay success/charges or HTTP-client transport. No deployment occurred.
+- Next: unmapped P0 returns and inventory administration. Remaining provider
+  acceptance and pending-payment history-resume gaps are explicit in
+  [QA validation](../qa/automation/VALIDATION.md) and
+  [assertion gaps](../qa/automation/ASSERTION-GAPS.md). Earlier entries retain
+  their execution-time counts.
+
+### Notification deduplication verification - 2026-11-03
+
+- Added three PostgreSQL/MockMvc tests for concurrent checkout retries,
+  ignored-response replay during delivery and immutable placement payload after
+  capture. Assertions retain one order/event/reservation, the original delivery
+  claim/lease, and no requeue after publication. Captured checkout rejects 409;
+  the authenticated owned-order read reports the paid state.
+- Strengthened disable/re-enable without backfill and malformed/healthy event
+  isolation. Twenty reviewed method selectors add partial assertion mappings
+  for all ten notification cases and strengthen checkout retry evidence.
+- The fresh disposable PostgreSQL16/Redis suite passed 568/568 tests with zero
+  failures/errors/skips and successful cleanup. The first run's two new-test
+  expectation failures remain preserved; timestamp precision and paid-checkout
+  expectations were corrected without changing application behavior.
+- The [current evidence review](../qa/automation/artifacts/ecommerce-review-20261103150519-36a02191/REPORT.md)
+  passes 305 assertion groups and 226/546 partial case subsets, leaving 320
+  unmapped. Separate prior 538 React, 160 local API/browser and 17 hosted tests
+  supply retained evidence. No complete manual case or human/provider/
+  operational acceptance is claimed. No production code, schema or deployment
+  changed. SMTP remains at least once; tests use controlled mail transport.
+- Next: actual online/closed-tab recovery, followed by remaining P0 returns and
+  inventory work. Details and separate browser/SMTP/crash acceptance gaps are
+  in [QA validation](../qa/automation/VALIDATION.md) and
+  [assertion gaps](../qa/automation/ASSERTION-GAPS.md). Historical entries below
+  retain their execution-time counts.
+
+### Checkout capture/expiry concurrency verification - 2026-11-03
+
+- Added deterministic PostgreSQL transaction tests for capture-first and
+  expiry-first outcomes, with observed database lock blocking before commit.
+  Timely capture retains paid stock; late capture stays in order review without
+  consuming released stock. Replay, next-sweep and immutable-snapshot assertions
+  pass; captured-payment/pending-order inconsistency retains its safe issue.
+- The complete disposable backend suite passed 565 tests with zero
+  failures/errors/skips and successful cleanup. No application defect surfaced;
+  no production code, migration, provider configuration or deployment changed.
+- The [current evidence review](../qa/automation/artifacts/ecommerce-review-20261103143118-6fcdfbaf/REPORT.md)
+  passes 285 assertion groups and partially maps 216/546 cases, leaving 330
+  unmapped. All 31 checkout IDs now have assertion mappings, not complete
+  manual-case passes. The review retains the separate 538 React, 160 local
+  API/browser and 17 hosted executions; these layers were not rerun for this
+  test-only change. HTTP/provider/browser acceptance remains separate.
+- Details, exact source executions and remaining checkout clauses are in
+  [QA validation](../qa/automation/VALIDATION.md) and
+  [assertion gaps](../qa/automation/ASSERTION-GAPS.md). Historical entries below
+  retain their counts at the time of execution.
+
+### Discounted shipping correction - 2026-11-03
+
+- Fixed double discounting in dashboard planning and provider subtotal mapping.
+  Shared validation reconstructs gross goods from original net tax/discount
+  shares and retains compatible legacy gross snapshots. 118 -10 +79 maps to 187;
+  no customer, tax, payment or historical allocation snapshot is rewritten.
+- A real coupon-checkout/loopback-client regression and discounted cancellation
+  regression verify exact intended charges. Three corrupted fixtures must hold
+  before shipment/provider intent. Incompatible historical odd-paise unit-price
+  allocations remain held; no implicit repricing or entitlement repair is added.
+- All 563 backend tests passed on disposable PostgreSQL16/Redis with zero
+  failures/errors/skips and scoped cleanup passing. This includes the 56 focused
+  shipping tests previously passed separately on a temporary PostgreSQL13 cluster.
+  Docker startup was restored by the owner. QA runner self-tests passed 46;
+  syntax, scoped formatting and diff checks passed.
+- The [current evidence review](../qa/automation/artifacts/ecommerce-review-20261103085415-61051306/REPORT.md)
+  passes all 260 assertion groups (92 local, 157 regression, 11 hosted). It combines
+  the fresh backend run with prior 534 React, 144 local API/browser and 17 hosted
+  executions. Coverage remains 196 partial cases/350 unmapped, with no full
+  manual-case pass inferred. Earlier failed fixture and completed baseline
+  evidence remain preserved in [validation results](../qa/automation/VALIDATION.md).
+- Existing held work requires normal audited retry after running the updated
+  backend. Existing immutable provider intents are retained. No migration,
+  provider configuration change or deployment is included; external acceptance
+  remains separate.
+
+### Combined local and hosted QA - 2026-11-03
+
+- Added a combined automation command and planning command under `qa/automation`.
+  Local Java/React regressions and disposable HTTP/database/browser tests retain
+  separate results from the read-only hosted Render smoke checks. Child reports
+  are scoped to the combined run; missing/failed evidence cannot become a pass.
+- Added local registration/security/profile/boundary/payment checks and reviewed
+  exact Java method/React title and hosted assertion mappings. The inventory now
+  has 252 assertion groups: 92 local, 149 regression and 11 hosted. These partially
+  map 196 manual cases of 546; 350 remain unmapped, down from 450. Catalog sorting
+  now maps a real sort/tie-breaking assertion rather than pagination validation. Full manual
+  expectations, steps, verification and a per-module P0 backlog are preserved.
+  No complete manual-case pass or completion of the whole suite is claimed.
+- Verification across distinct completed runs: 555 Java, 534 React and 144 local
+  API/browser checks passed, with no failures/skips in those executions.
+  The final partial-refund edge-case regression passed; scoped cleanup also passed.
+  Runner self-tests passed 46. Current API/browser outcomes and raw source links
+  are recorded in [validation results](../qa/automation/VALIDATION.md). Earlier
+  application failures and fixture/expectation failures remain preserved.
+  Windows cleanup now stops owned process trees before removing disposable
+  Docker resources, with a separate QA-process-cleanup stage.
+  Two interrupted runs remain Blocked with recovered scoped cleanup passing.
+  Mapping inventory is not execution evidence or completion of the original 96
+  partial cases; [assertion gaps](../qa/automation/ASSERTION-GAPS.md) remain explicit.
+- The latest hosted execution passed all 17 public read-only smoke checks.
+  Earlier category-timeout/home503 failures remain in their original reports.
+  This does not establish deployment of the local source fixes or provider acceptance.
+- Fixed inventory expiry stranding sibling reservations (AUTO-DEF-001): release
+  all active lines atomically after rechecking expiry; captured money retains
+  stock for review. Fixed duplicate-registration races returning 401
+  (AUTO-DEF-002) by flushing the user insert before authentication. Processed
+  webhook IDs reused with changed signed content now durably record
+  EVENT_ID_PAYLOAD_MISMATCH while retaining the original hash and payment evidence.
+  Fixed a fourth defect: fractional cart JSON quantities were truncated to an
+  integer, so PATCH 0.5 removed a line. Request DTOs now validate decimal quantities
+  as whole numbers before exact integer conversion; fractions return 400 without
+  changing the cart. Existing add 1–50 and update 0–50 limits are unchanged.
+  No deployed historical-data repair, deployment or provider setting change was made.
+- Fixed a fifth defect: multiple captured provider payment IDs now produce durable
+  MULTIPLE_CAPTURED_PROVIDER_PAYMENTS review rather than silently selecting a charge.
+  Competing callbacks serialize; both captured callback references remain recorded,
+  balances/snapshots are preserved and retries cannot clear review. New ambiguous
+  refunds conflict; an existing intent can recover against its saved charge/key
+  without losing the warning. Reconciliation also flags unreported extra captures.
+- Reviewed P0 commerce coverage includes payment/refund recovery and balance
+  conservation, shipping leases/unknown outcomes/cancellation/tracking, and order
+  cancellation/COD finance roles and evidence. Remaining unmapped P0 counts in
+  those groups are 1, 0 and 0. Complete manual expectations still need review.
+- New contract coverage includes credential/phone boundaries with durable security
+  and profile evidence, missing/foreign CSRF tokens, logout cookie revocation,
+  catalog sorting/pagination, variant repricing and actual stale quote rejection.
+  A local browser failure/retry assertion supplies CART-025 recovery evidence;
+  hosted empty-cart success alone is not treated as recovery coverage.
+- Independent human/provider/operational acceptance records require reviewer,
+  environment, scope, timestamp and validated, hashed evidence files. The register
+  is empty; none of these acceptance results is claimed. A separate evidence-review
+  command can combine explicitly selected completed runs while preserving failed
+  source stages and identifying each execution. The manual execution CSV is unchanged.
+- Evidence, initial harness corrections, coverage limits and remaining batches
+  are in [QA validation](../qa/automation/VALIDATION.md) and the
+  [automation expansion roadmap](../qa/automation/AUTOMATION-ROADMAP.md).
+
+- Shipping/cancellation expansion adds specific partial mappings for all six remaining
+  shipping/order P0 IDs: handover prerequisites, private bounded document transport,
+  discounted commercial safe hold, reverse recovery/lease ownership, invalid
+  cancellation and remainder replanning. Document MIME lookalikes and immediate
+  transport failures were reproduced and fixed. The fresh 555-test backend run
+  passed with zero failures/errors/skips and scoped cleanup passing. Other layers
+  retain their separate prior completed evidence. Discounted dashboard booking
+  remains held for commercial review and is still a release gap; no provider
+  acceptance, deployment or full manual-case pass is inferred.
 
 ### B2C invoices and reviewed credit notes - 2026-10-31
 
@@ -30,8 +287,24 @@ Last updated: 2026-10-31
   samples/HSN/tax/shipping treatment, series opening, regulatory applicability,
   retention and provider/packing acceptance remain release gates. No deployment
   or live account/provider configuration was changed.
+- Verification: **42 invoice tests across eight suites passed**, covering PDF
+  output, saved amounts, zero-value COD, synthetic-HSN rejection, authorization,
+  concurrency, immutable documents, adjustment ordinals, dispatch protections,
+  MIME attachments, worker leases/retries and resends. **111 existing backend
+  regression tests** passed for checkout, shipping/tracking, cancellation/COD,
+  admin notification and migration upgrade. The initial broad run exposed four
+  resend-fixture serial collisions with committed concurrency fixtures; the
+  fixture now allocates a separate test-year series and the final invoice rerun
+  passed with zero failures/errors. Scoped Spotless and `bootJar` passed.
+- Frontend verification passed **106 distinct tests across eight suites** and
+  the TypeScript/Vite production build. Scoped lint has zero errors and three
+  async-effect warnings; existing Sass notices remain. Browser UI acceptance
+  remains separate. The generated A4 sample was rendered and visually inspected;
+  the delivered example is conspicuously marked SAMPLE NOT A TAX INVOICE.
+  Tests used disposable local PostgreSQL databases and mocked email/provider
+  effects; the databases were removed after verification.
 - Setup, API roles, storage/retry behavior and operational limitations are in
-  [Invoicing](INVOICING.md). Verification results are recorded below when complete.
+  [Invoicing](INVOICING.md).
 
 ### Hosted recovery email diagnosis and safe delivery logs - 2026-10-31
 

@@ -24,6 +24,7 @@ Recorded from the project owner's answers on 2026-10-10. The owner confirmed tha
 
 - Keep monetary amounts to two decimal places. Round each line's GST to paise using `HALF_UP`; split local GST into CGST and SGST, assigning any paise remainder to SGST. IGST remains a single component. Sum rounded line components for the order and retain paise; do not round the customer invoice total to a whole rupee.
 - This is the application's provisional calculation convention and still needs sample-case review by the Admin/tax approver.
+- Runtime clarification (2026-11-04): `TaxEngine` rounds CGST as half the tax using `HALF_UP` and gives SGST the difference. Thus exclusive taxable 0.03 at 18% produces tax 0.01, CGST 0.01 and SGST 0.00, matching manual case `TAX-008`. This differs from the provisional SGST-remainder wording above. The automation batch preserves the implemented calculation and historical snapshots; the business/tax approver must resolve the convention before production acceptance.
 
 ### Invoice and credit note
 
@@ -42,7 +43,8 @@ Recorded from the project owner's answers on 2026-10-10. The owner confirmed tha
 
 ## Approval and release gates
 
-- Current `/api/v1/admin/tax` endpoints and the Admin GST setup panel immediately activate data entered by an authenticated `ADMIN`. For this single-Admin development setup, saving is the Admin's approval action; there is no separate maker-checker queue.
+- Current `/api/v1/admin/tax` endpoints save categories and effective rates as active configuration without granting their explicit runtime tax approval. An authenticated `ADMIN` separately approves the classification, then its rate, and the exact current business-policy revision. Normal-profile tax calculation requires all three approvals; `demo` and `payment-sandbox` retain the documented fixture bypass. Saving a changed policy does not inherit its predecessor's approval. The same Admin can configure and approve; there is no separate maker-checker queue. This corrects the older save-is-approval description to match the implemented workflow, `ADMIN-CONSOLE-IMPLEMENTATION.md` and the manual GST cases; it does not introduce a new approval mechanism.
+- Migration provenance matters: V32 seeds classifications/rates with `approved_by=SYSTEM`, approves fallback policy revision 0 and then-existing policy revisions, and supplies fallback product classifications. These records can satisfy the runtime database gate; they do not establish actual product classification, seller identity or business approval. The new approval tests use unique classifications and, where needed, a new unapproved policy revision. V32 is an existing applied migration and is not rewritten by this test batch. Review seeded approval provenance and remove the production reliance on fixture/fallback approvals before release.
 - The Admin may load the synthetic demo values only into the separate demo database. Real product classifications, rates, shipping treatment, invoice samples, credit-note behavior, and rounding cases require approval against actual products and seller records before production checkout is enabled.
 - Hosting, production secret manager, notification provider, and named operational owner are undecided and remain Stage 0 launch blockers.
 - Production seller registration details/GSTIN and the actual product HSN/SAC/rate table are still missing. Synthetic fixture data is not evidence for either.

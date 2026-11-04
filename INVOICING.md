@@ -56,6 +56,8 @@ When enabled, application dispatch requires an issued invoice whose net
 cancellation-adjusted quantities match the saved order remainder. Carrier scans
 do not create or backdate invoices. Missing documentation prevents automatic
 dispatch projection and leaves the existing tracking review/reconciliation path.
+Orders with an issued invoice retain quantity-alignment protection even if new
+issuance is subsequently disabled.
 Operations must still check the document before handing a parcel to a courier;
 the app cannot prevent a physical handover performed entirely in Shiprocket.
 
