@@ -1,6 +1,70 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-11-04
+Last updated: 2026-11-06
+
+### Catalog/admin atomic mutation coverage - 2026-11-06
+
+- Seven new committed MVC/PostgreSQL tests verify catalog rollback, exact field
+  boundaries, variant ownership/collection limits, configured attributes, existing
+  stock/ledger conservation, omitted-SKU retention and version semantics. Focused
+  verification passes 7/7 with owned cleanup; a new editor network-failure/delayed
+  retry passes with 17/17 catalog component tests. Fresh full regression passes
+  656/656 Java and 556/556 React, zero failures/errors/skips, with cleanup. The
+  [consolidated review](../qa/automation/artifacts/ecommerce-review-20261106110556-a5a18367/REPORT.md) passes all 584 groups using
+  retained API/browser/lifecycle and November 2 hosted evidence.
+- AUTO-DEF-023 fixes valid 255-character product names producing overlong derived
+  slugs. The readable prefix now reserves space for the existing identity suffix;
+  names and existing rows remain intact. No schema/provider/deployment change.
+- Thirty-five exact mappings bring coverage to 442 partial cases and 104 unmapped,
+  with 3 unmapped P0 IDs. Seven backend and one frontend test are new; 27 mappings
+  review existing bodies. The source has 584 assertion groups; full manual/provider/
+  human acceptance is not inferred. See [validation](../qa/automation/VALIDATION.md).
+
+
+### Fresh P0 commerce journeys - 2026-11-06
+
+- Added three coherent MVC/PostgreSQL journeys for E2E-003/005/008/012: actual
+  draft creation/publication and last-unit dispatch; captured payment with lost
+  shipping-create response and lookup-only recovery; delivered prepaid return,
+  reverse creation, physical receipt, explicit restock and signed refund replay.
+- Focused disposable verification passes 3/3 and fresh full backend passes 649/649,
+  zero failures/errors/skips, with cleanup. The [consolidated review](../qa/automation/artifacts/ecommerce-review-20261106103603-6a341c85/REPORT.md)
+  passes all 549 groups using retained React/API/browser/lifecycle and November 2
+  hosted evidence. Signed inventory movement sums,
+  immutable commercial snapshots, one remote create/refund and once-only restock
+  are asserted. No new application behavior, schema or provider activation.
+- Mappings now cover 413 cases partially with 133 unmapped and three unmapped P0
+  IDs (PAY-001/API-013/E2E-001). Browser/staff-login, actual provider HTTP transport,
+  measured worker deadlines and human/provider acceptance are separate.
+  Next prioritize catalog/administration, shipping/returns and full assertion gaps.
+  See [validation](../qa/automation/VALIDATION.md) for execution dates and failures.
+
+
+### Recovery, privacy and regression milestone - 2026-11-06
+
+- Fresh Java 646/646, React 555/555 and API 171/171 pass with owned cleanup.
+  Fresh Chromium 32/32, production frontend build, scoped lint and 55 runner
+  self-tests also pass. The [consolidated evidence review](../qa/automation/artifacts/ecommerce-review-20261106100715-823a5748/REPORT.md)
+  passes all 546 assertion groups across selected completed sources; hosted smoke
+  is retained from November 2 and does not establish deployment of local fixes.
+- Four actual process/peer-instance drills pass: same-cookie restart, concurrent
+  Redis cart updates, expiry-worker interruption/controlled lease advance and
+  cancellation/dispatch/inspected-COD-return ledger conservation across restart.
+  The real 300-second lease is preserved; advancing its disposable timestamp is
+  not a five-minute wall-clock recovery measurement or refund-worker acceptance.
+- AUTO-DEF-021 fixes guarded logout navigation. AUTO-DEF-022 suppresses JDBC row
+  details in two Hibernate loggers and retains a validated SQLState diagnostic
+  through the conflict handler. Real HTTP conflict verification and Java regression
+  pass. No migration, provider activation or deployment was performed.
+- Reviewed mappings cover 409 manual cases partially, with 137 unmapped and seven
+  unmapped P0 IDs. All 380 regression selectors match passing evidence; original
+  manual statuses and separate human/provider/operational acceptance are unchanged.
+  Next implement coherent P0 publish/sell/dispatch, last-unit dispatch, captured
+  payment/shipping recovery and delivered prepaid return/refund journeys. These
+  local engineering tasks are not classified as external acceptance blockers.
+  See [current validation](../qa/automation/VALIDATION.md) for exact dates, failures,
+  synthetic-provider limits and release gates.
+
 
 ### Critical commerce/session controls and reliability automation - 2026-11-04
 
