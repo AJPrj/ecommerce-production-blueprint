@@ -94,8 +94,13 @@ cannot match when all SKU overrides are outside the range. Filtering precedes
 pagination and counts each product once; all variant options remain in the
 response for explicit selection. Without price bounds, ordinary catalog reads
 retain sold-out products. Collection price bounds use the same variant rule,
-alongside their existing membership and eligibility checks. Price sorting
-continues to use the product base price.
+alongside their existing membership and eligibility checks. Public `price`,
+`price-low` and `price-high` sorting uses the lowest effective variant price shown
+by an unselected card, including sold-out options that remain selectable. Null
+overrides inherit base price; products without variants fall back to base price.
+Both directions use this minimum, with ascending product ID as the tie breaker,
+before pagination. Choosing a variant updates the card without reordering results.
+Admin price sorting retains its product base-price basis.
 
 Example:
 
@@ -188,6 +193,20 @@ POST   /api/v1/cart/reprice
 ```
 
 The server recalculates all monetary totals.
+
+Implemented `/api/v1/cart` reads and item mutations return each line's exact
+`productVariantId`, `sku` and additive `variantName` from the saved catalog SKU;
+`name` remains the product name. Same-product variants retain independent
+quantities and prices. The cart page and drawer display variant name and SKU,
+and quantity/remove controls include that identity in their accessible names.
+Older responses without `variantName` still display the SKU. Variant names use
+the existing batched catalog reads; no extra per-line lookup or migration is needed.
+
+Cart quantities are whole numbers up to 50 per SKU, with the aggregate quantity
+across repeated adds also capped at 50 and bounded by available stock. Add accepts
+1-50; quantity updates accept 0-50, with zero removing the line. PDP, product-card
+and cart controls use the same stock-limited 50-unit maximum. The PDP identifies
+this as a per-variant cart cap rather than a ten-unit per-order rule.
 
 ## 8. Checkout
 

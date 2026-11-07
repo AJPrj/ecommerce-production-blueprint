@@ -88,6 +88,15 @@ Reporting semantics are explicit: booked merchandise is the net saved merchandis
 
 Operations retain `/api/v1/admin/operations/**`; catalog retains `/api/v1/catalog/admin/**`. New administration reads/commands use `/api/v1/admin/{customers,staff,roles,settings,promotions,audit}`. Settings apply only at their effective time; checkout captures the current return promise and monetary/tax snapshots. `/api/v1/public/business-policy` exposes only the current public shipping and return terms.
 
+Free delivery is an explicit opt-in in Business settings (2026-11-07). The public
+and admin policies expose `freeShippingEnabled`; missing/null values in older
+saved policy JSON or requests normalize to false. `freeShippingThreshold` may be
+null/omitted while disabled and must be a valid nonnegative amount when enabled.
+Only enabled offers waive the configured delivery charge at or above the
+merchandise subtotal threshold. Cart and checkout share this effective policy;
+storefront offers use its public projection. The existing JSONB policy storage
+needs no migration, and existing order charges/snapshots remain immutable.
+
 The operations order queue accepts a literal, case-insensitive `search` of up to 254 characters across order number, the ordering account's name/email/phone, provider order/shipment IDs and AWB/tracking references. State/date filters and pagination still apply to orders, including when several bookings match. Its additive `customer` and `shipments` fields are available only to existing operations-reader roles; Finance/Reporting retain their separate ledger projection. Shipping summaries load in one batch for the current page and preserve cancelled, replacement and split records. Customer identity comes from the current account, not the immutable delivery-recipient snapshot. Provider status and its timestamp describe the latest saved verified observation; refreshing the queue does not make a live Shiprocket request. Direct Shiprocket dashboard links are deferred at the owner's request.
 
 Categories have a Delete action beside Edit. Its confirmation names the category and slug; failed deletion preserves the row and editor draft. `DELETE /api/v1/catalog/admin/taxonomy/categories/{id}` requires Admin authorization, CSRF and an `expectedName`/`expectedSlug` request body. The backend locks the category, rejects a changed record with 409, and blocks deletion while any product (including draft/archived), child category or included/excluded promotion rule still references it. Deactivate the category or reassign/remove those references first. An already-absent category returns 204 for a safe lost-response retry; an unavailable endpoint remains an error in the UI. Successful deletion and its audit event commit together. Promotion configuration and deletion share the existing advisory lock so concurrent promotion saves cannot create orphan references. Existing order and business-policy snapshots remain unchanged; no schema migration is needed.

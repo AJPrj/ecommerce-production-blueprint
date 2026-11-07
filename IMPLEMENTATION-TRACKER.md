@@ -2,6 +2,154 @@
 
 Last updated: 2026-11-07
 
+### EOB-P1-09 - consistent variant discount rounding - 2026-11-07
+
+- Catalog cards and PDP now share a whole-percent discount helper that rounds
+  down, matching the existing server merchandising rule. The selected Large
+  variant at INR 200 against MRP 1,499 shows 86% off in both views. Integer-paise
+  calculation preserves exact decimal boundaries; positive discounts below 1%
+  retain price comparisons without a percentage badge. Explicit variant-choice
+  guards, effective prices, MRP and cart/checkout calculations retain their rules.
+- Baseline UI checks reproduce two PDP failures: the reported 87% claim and a
+  0.5% discount advertised as 1%. Ten new parameterized component cases cover
+  both views, fractional/exact decimal boundaries, sub-one-percent discounts
+  and clearing selections. Final verification passes 72 tests in six files,
+  TypeScript/Vite build and diff checks. Scoped lint has zero errors and the
+  existing PDP effect warning; existing Sass/build notices remain.
+- README, merchandising notes and CAT-015/016 document the display rule. This
+  is frontend-only: no backend code/tests, migration, new setting or deployment.
+  Live browser acceptance was not rerun. Refresh/rebuild the updated frontend.
+  See [verification](../output/eob-p1-09-20261107/README.md).
+
+### EOB-P1-07 - mobile cart horizontal reflow - 2026-11-07
+
+- Reproduced the reported 385px document width at narrow phone widths in an
+  isolated local Chrome/Chromium browser with actual storefront fonts. Later
+  desktop row rules overrode earlier mobile columns, leaving product text almost
+  zero width. Cart rows now use a thumbnail/detail grid with a separate wrapping
+  quantity/price row on phones. Cart/summary tracks can shrink; names/SKUs and
+  larger totals wrap. Tablet cart layout uses one column and a nonsticky summary.
+- Removed the body-wide 320px minimum that exceeded the 305px content area of a
+  320px viewport with a scrollbar. The footer newsletter input can also shrink,
+  fixing the final 7px page overflow after the cart itself fit. Summary text,
+  delivery meter and checkout button remain within their cards. Desktop row
+  layout and quantity behavior are retained.
+- Final browser verification passes 12 cases: normal/long-label carts at 320,
+  360, 390, 400, 768 and 1280px with a 15px scrollbar gutter. Document widths equal
+  available widths in every case (305/345/375px at the reported phone sizes).
+  Cart bounds/content checks and quantity/checkout trial clicks pass; screenshots
+  were visually reviewed. All API responses used synthetic read-only fixtures.
+- Focused cart/delivery/checkout tests pass 36/36. Final TypeScript/Vite build and
+  diff checks pass. Scoped lint has zero errors and the existing cart effect
+  warning; existing Sass/build notices remain. No backend/schema/configuration
+  change, live data mutation or deployment. Chrome extension was unavailable;
+  the owner approved local automated Chromium verification. Temporary browser
+  and local Vite services closed after each run. Frontend README and UX-006/007
+  include the acceptance widths. See [verification](../output/eob-p1-07-20261107/README.md).
+
+### EOB-P1-06 - recover from unknown storefront URLs - 2026-11-07
+
+- Root route recovery now distinguishes router 404 responses from unexpected
+  errors. Unknown storefront URLs show 404 / Page not found with Back to Home
+  and Browse products links, replacing the reload-only loop. Unexpected failures
+  retain Reload page and navigation with a safe generic explanation. Raw error
+  messages/response bodies are not displayed or logged by this component.
+- The recovery view uses existing Bootstrap/storefront styles and works without
+  header/footer data requests. Router configuration, protected routes and the
+  existing Admin unknown-child page retain their behavior. Eight regression
+  cases cover direct/deep unknown URLs, both navigation links, revisiting the
+  unknown path, genuine exceptions/503s and the Admin fallback. Seven failed
+  against the old boundary; all eight pass with the fix.
+- Final verification passes 62 tests across route recovery, Admin console,
+  password recovery and category navigation. TypeScript/Vite production build,
+  scoped lint (zero warnings/errors) and diff checks pass. Existing Sass/build
+  notices remain. Frontend-only change; no backend tests, migration, new setting
+  or deployment. Live browser/hosted acceptance was not performed. Refresh/rebuild
+  the frontend to apply it. README, frontend architecture and UX-012 describe
+  the behavior. See [verification](../output/eob-p1-06-20261107/README.md).
+
+### EOB-P1-05 - consistent SKU quantity limits - 2026-11-07
+
+- Owner confirmed the existing backend rule: 50 units per SKU across PDP, product
+  cards and cart, limited by available stock. This supersedes the older ten-unit
+  frontend picker limit. A shared frontend helper now bounds all three surfaces.
+  PDP wording says up to 50 per variant in the cart, replacing the misleading
+  per-order claim. Backend aggregate validation across repeated adds is unchanged.
+- Cart typed input and plus controls now stop at 50 when stock exceeds 50;
+  dropdown options use the same stock-limited maximum. Unavailable lines disable
+  quantity controls while retaining removal. The reported stock15 case accepts
+  11 from both PDP and cart, and the cart can be restored to 1.
+- Final verification passes 80 tests across PDP, cards, cart, wishlist and checkout.
+  TypeScript/Vite build, scoped lint and diff checks pass; lint retains two
+  existing effect warnings and the build retains existing Sass notices. Baseline
+  checks reproduce the cart cap mismatch and old PDP limit. A missing test-helper
+  import and a remaining legacy ten-unit assertion were corrected during validation.
+- Domain/API notes, the frontend README and CAT-017/CART-027 describe the confirmed
+  rule. Frontend-only change: no backend code, migration, new setting or deployment.
+  Backend tests and live browser acceptance were not rerun. Refresh/rebuild the
+  frontend to apply it. See [verification](../output/eob-p1-05-20261107/README.md).
+
+### EOB-P1-04 - identify chosen variants in the cart - 2026-11-07
+
+- Cart response lines add `variantName` from the already batched SKU projection,
+  alongside existing SKU and variant ID. Product names, independent quantities,
+  prices and inventory rules retain their meanings. Cart page and drawer show
+  the readable variant and SKU below each title; quantity/remove controls include
+  the same identity in accessible labels. Missing variant names in older responses
+  fall back to SKU. Drawer text wraps while preserving the price column.
+- Five new frontend cases and a backend MVC response regression fail before the
+  fix and pass afterward. Final verification passes 45 backend tests across cart
+  and checkout and 32 frontend tests across cart, delivery offers and checkout.
+  Scoped Spotless, `bootJar`, TypeScript/Vite build and diff checks pass. Scoped
+  lint has zero errors and the existing cart state-in-effect warning; existing
+  Sass/compiler notices remain. Disposable services were removed after both runs.
+- API and application READMEs document the additive field and compatibility.
+  No migration, new setting or deployment. Restart the matching backend and
+  refresh the updated frontend. Live browser acceptance was not performed.
+  See [verification](../output/eob-p1-04-20261107/README.md).
+
+### EOB-P1-02 - price sorting matches displayed variant minimum - 2026-11-07
+
+- Public catalog and collection price sorts now use the minimum effective variant
+  price shown on an unselected card, rather than product base price. Null overrides
+  inherit base price; selectable sold-out options remain part of the displayed
+  minimum. Both directions use that minimum with ascending product ID for ties,
+  in SQL before pagination. Existing available-SKU price filters and Admin
+  base-price sorting retain their rules; choosing another variant does not reorder
+  the page. API, merchandising and backend documentation describe the basis.
+- All ten new PostgreSQL/MVC regressions failed against the original implementation
+  and pass with the fix. Final verification passes 81 backend tests in five suites
+  and 43 frontend category/card tests. Scoped Spotless, `bootJar` and diff checks
+  pass. Both runs removed their owned disposable PostgreSQL/Redis resources.
+  No migration, new configuration, production data change or deployment. Restart
+  the updated backend to apply the fix. Live browser acceptance was not performed.
+  See [verification](../output/eob-p1-02-20261107/README.md).
+
+### Optional free delivery, disabled by default - 2026-11-07
+
+- Owner-requested change replaces automatic threshold shipping with an explicit
+  `freeShippingEnabled` opt-in. Fallback and older saved/request policy JSON
+  without the flag default to false; a saved threshold alone grants no offer.
+  Disabled policies may omit/null the threshold. Enabled policies require a
+  validated nonnegative threshold. The configured delivery charge (fallback
+  INR 79) applies to every positive subtotal while disabled; empty carts stay zero.
+- Cart and checkout share the effective business policy. Admin hides the
+  threshold field unless enabled. Navbar/footer, store features, product policy
+  and both cart meters use the public policy, replacing inconsistent hardcoded
+  offers. Drawer progress uses merchandise subtotal rather than grand total.
+  Policy request sharing and unavailable-policy behavior are covered. Existing
+  financial snapshots stay immutable; no migration or new environment setting.
+- Final verification passes 107 backend tests in 17 suites and 63 frontend
+  tests in six files. Scoped Spotless, backend `bootJar`, TypeScript/Vite build
+  and scoped lint pass; lint retains three existing effect warnings and the
+  frontend build retains existing Sass notices. Initial failures exposed strict
+  JSON handling for an omitted primitive flag and two new test-fixture issues;
+  corrected before the passing rerun. An initial frontend checkout timeout and
+  cascading failure pass on rerun without checkout changes. Disposable backend
+  service cleanup completed. No live provider changes or deployment. Rebuild/
+  restart the matching backend and refresh the frontend to use this behavior.
+  See [verification](../output/optional-delivery-20261107/README.md).
+
 ### Frontend captured-payment queue regression - 2026-11-07
 
 - Reproduced the reported operations test failure: captured orders were missing

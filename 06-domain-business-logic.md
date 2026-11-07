@@ -42,6 +42,14 @@ A variant should own:
 
 Do not use product-level stock for a variant-driven catalog.
 
+Customer quantity controls on the PDP, product cards and cart use a maximum of
+50 units per SKU, further limited by that SKU's available stock. This is the
+aggregate cart-line cap across repeated adds, rather than a ten-unit per-order
+restriction or a total-unit limit across distinct SKUs. The backend validates
+whole quantities and enforces the aggregate cap and current availability.
+PATCH quantity zero removes a cart line. This owner-confirmed EOB-P1-05 rule
+supersedes the older frontend ten-unit picker limit.
+
 ### Homepage merchandising
 
 Featured and special products are ordered staff selections, each with up to 40

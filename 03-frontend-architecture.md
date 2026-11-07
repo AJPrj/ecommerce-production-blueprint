@@ -222,6 +222,14 @@ The earlier specification explicitly called out SEO/speed for the storefront and
 
 ## 14. Error boundaries
 
+The implemented root route boundary distinguishes router 404 responses from
+unexpected failures. Unknown storefront URLs display `404 / Page not found`
+with links to Home (`/`) and all products (`/category/all`), without a reload-only
+loop. Unexpected failures retain Reload page and the same navigation links with
+a safe generic explanation; raw exception messages and response bodies are not
+rendered. Recovery does not depend on loading the storefront header/footer or
+their API requests. Admin unknown child routes retain the protected Admin page.
+
 Provide:
 
 - Application-level boundary

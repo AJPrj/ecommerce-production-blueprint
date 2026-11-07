@@ -35,6 +35,14 @@ The server recalculates it from current compare-at and selling prices. The
 heading alone is shown when a positive discount rounds below one percent.
 Selection does not create a coupon or change checkout pricing.
 
+Catalog-card and product-detail percentage badges share this rounding-down rule
+for the explicitly selected variant's effective selling price and product MRP.
+The frontend calculates from integer paise to preserve exact decimal boundaries.
+For example, INR200 against MRP1499 shows86% off in both views; INR0.28 against
+MRP0.35 shows20%. Positive discounts below1% keep the price comparison while
+hiding the percentage badge. Multi-variant cards/details show no percentage
+claim before a choice or after clearing the choice.
+
 ## Automatic bestsellers
 
 Bestsellers are the four eligible products with the most **net paid delivered
@@ -143,7 +151,10 @@ catalog price/date sorting semantics. Inclusive price bounds match one available
 variant's effective price (override or product base price), with both bounds
 applied to that same variant and on-hand stock greater than reserved stock.
 All options remain available for explicit selection in the response. Price
-sorting continues to use product base price. Filtering and pagination execute in
+sorting uses the minimum effective price across all selectable variant options,
+including sold-out options, matching the unselected card's From price. Null
+overrides inherit base price; both sort directions use the same minimum and
+ascending product ID breaks ties. Filtering, sorting and pagination execute in
 PostgreSQL before mapping the page's product DTOs. Unknown collection names return 404;
 invalid pagination or price ranges return 400. Public responses use
 `Cache-Control: no-store`. No additional migration or configuration is needed;

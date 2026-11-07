@@ -13,7 +13,7 @@ Recorded from the project owner's answers on 2026-10-10. The owner confirmed tha
 
 ### Shipping
 
-- Keep the current customer charge: ₹79 below a ₹1,499 merchandise subtotal, otherwise free.
+- Owner update (2026-11-07): free delivery is optional and disabled by default. The default customer delivery charge is ₹79 for any positive merchandise subtotal. Admin can explicitly enable a minimum-order offer in Business settings; only then does a subtotal at or above the configured threshold waive delivery. Missing/null `freeShippingEnabled` in older saved policy JSON means disabled; a threshold alone does not opt in. Disabled policies may omit/null the threshold. Cart estimates and checkout share the effective business policy, and storefront delivery messaging follows its public projection. Existing order totals and commercial snapshots remain unchanged.
 - Treat a seller-charged delivery fee as ancillary to the goods for the current single-seller checkout. Include it in the GST value and apply the associated product rate, consistent with the composite-supply treatment described by CGST Act sections 8 and 15 and CBIC's freight FAQ.
 - For a cart containing different product rates, allocate the delivery charge across lines in proportion to each line's merchandise value. Allocate whole paise deterministically so the shares always sum to the charged delivery amount. This is an application allocation convention, not a rate-allocation formula prescribed by the cited law.
 - The configured inclusive/exclusive price treatment also applies to the stated delivery fee. The current v1 configuration is inclusive, so the displayed ₹79 remains the amount payable and its GST is extracted from that amount.
