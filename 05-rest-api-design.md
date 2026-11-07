@@ -86,6 +86,17 @@ GET /api/v1/products/{id}/related
 
 Filtering should be server-side.
 
+Implemented `GET /api/v1/catalog/products` price bounds are inclusive and match
+one available variant's effective selling price (`priceOverride`, falling back
+to the product base price). When both bounds are supplied, the same variant must
+satisfy both, with on-hand stock greater than reserved stock. A base price alone
+cannot match when all SKU overrides are outside the range. Filtering precedes
+pagination and counts each product once; all variant options remain in the
+response for explicit selection. Without price bounds, ordinary catalog reads
+retain sold-out products. Collection price bounds use the same variant rule,
+alongside their existing membership and eligibility checks. Price sorting
+continues to use the product base price.
+
 Example:
 
 ```text
@@ -257,6 +268,19 @@ GET    /api/v1/admin/reports/jobs/{id}
 ```
 
 ## 13. Pagination
+
+The implemented operations order queue,
+`GET /api/v1/admin/operations/orders`, accepts
+`paymentStatus=PAID_OR_CAPTURED` to include both captured and legacy paid orders.
+The database applies this group alongside search, order status and date bounds
+before pagination. Exact `PAID`, `CAPTURED` and other payment-state filters retain
+their existing semantics.
+
+Shipment creation, return requests and cancellation requests reject null
+elements in their quantity arrays with 400. Unknown/foreign return order-item
+IDs retain the existing 404 lookup response. Carrier webhook acknowledgements
+remain empty 200 responses; persisted shipment status is read through tracking
+or operations detail.
 
 Use:
 

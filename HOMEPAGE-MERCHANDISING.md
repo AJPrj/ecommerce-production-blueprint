@@ -139,8 +139,12 @@ returns the existing catalog page shape:
 starts at zero, default size is 24, and sizes 1-50 are accepted. The default
 `sort=featured` retains selection order or bestseller rank; `price-low`,
 `price-high` and `newest` retain collection membership and use the existing
-catalog price/date semantics. Filtering and pagination execute in PostgreSQL
-before mapping the page's product DTOs. Unknown collection names return 404;
+catalog price/date sorting semantics. Inclusive price bounds match one available
+variant's effective price (override or product base price), with both bounds
+applied to that same variant and on-hand stock greater than reserved stock.
+All options remain available for explicit selection in the response. Price
+sorting continues to use product base price. Filtering and pagination execute in
+PostgreSQL before mapping the page's product DTOs. Unknown collection names return 404;
 invalid pagination or price ranges return 400. Public responses use
 `Cache-Control: no-store`. No additional migration or configuration is needed;
 rebuild/restart the backend and refresh the matching frontend.

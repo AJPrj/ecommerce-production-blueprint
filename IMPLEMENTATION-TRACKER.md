@@ -1,6 +1,67 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-11-06
+Last updated: 2026-11-07
+
+### Frontend captured-payment queue regression - 2026-11-07
+
+- Reproduced the reported operations test failure: captured orders were missing
+  from the current-page Awaiting shipment count. The Paid quick filter now uses
+  the backend's `PAID_OR_CAPTURED` group; the dropdown offers Paid (all) and exact
+  CAPTURED/PAID choices. Captured orders count alongside paid/COD orders in the
+  existing unshipped states. Refunded payments and completed deliveries remain
+  excluded. URL filtering, first-page reset and selected/pressed states are retained.
+- The original regression passes with additional exact-filter selection and
+  pressed-state assertions. Replaced its unsupported `getByRole` exact option
+  with an anchored name matcher, resolving the TypeScript build error too.
+- Focused workflow/CSV checks pass 43/43. Full frontend verification passes
+  557/557 tests across 53 files with `--pool=forks`; production build and scoped
+  Oxlint pass. An earlier full thread run was interrupted before results and is
+  not counted. Existing Sass notices remain. No backend/schema/dependency change
+  or deployment. See [verification](../output/test-failure-fix-20261107/frontend-paid-validation.md).
+
+### Plain Gradle test isolation and operations failures - 2026-11-07
+
+- Addressed the supplied 682-test/159-failure run: cached Spring contexts exhausted
+  PostgreSQL connections and standalone Redis tests lacked isolated service settings.
+  Plain `gradlew test` now owns disposable PostgreSQL 16/Redis 7 services, random
+  loopback ports, sandbox configuration and failure/success cleanup. One test fork
+  and a context cache of one bound datasource pools. The established QA runner
+  keeps its own resource lifecycle; no dependency or schema change was added.
+- Null quantities now return 400 at shipment/return/cancellation HTTP boundaries,
+  with a controlled domain guard for internal callers. Corrected existing test
+  expectations for 404 unknown return lines, empty carrier acknowledgements and
+  opaque Redis cart identity after short mock-session ID rotation. Existing stock,
+  financial, replay and no-write assertions remain. Four new validation cases pass.
+- Implemented the existing paid-group queue contract in SQL: `PAID_OR_CAPTURED`
+  matches captured and legacy paid orders before pagination; exact filters remain.
+  The disposable database retains the established `ecommerce_qa_regression` name
+  required by the deliberate connection-termination test, without weakening its guard.
+- Full native Gradle regression completed 692 tests with 690 passing and two
+  failures. After the final database-name and queue fixes, both affected suites
+  pass 24/24, with zero errors/skips; scoped Spotless and `bootJar` pass. This is
+  a full run plus a focused rerun, not a second full-suite pass. Original failed
+  evidence is retained. Completed full and final focused runs leave zero owned
+  Docker containers, volumes or networks. No production deployment or data change.
+  See [verification](../output/test-failure-fix-20261107/README.md).
+
+### EOB-P1-01 - available variant price filtering - 2026-11-07
+
+- Read-only hosted verification reproduced `maxPrice=500` returning only
+  Karpooradi Thailam while Daily Hydration Skincare Kit has available INR 500
+  and INR 200 options. Product base-price predicates caused the omission.
+- Catalog and collection price bounds now match one available SKU's effective
+  override/base price, inclusively, before pagination. Both bounds apply to the
+  same SKU; products are counted once and all variant options remain in responses.
+  Unfiltered catalog sold-out visibility and base-price sorting are retained.
+- All 81 catalog integration checks pass, including 13 new price-filter checks.
+  Scoped Spotless and `bootJar` pass. The broader six-suite run passes 115/118:
+  three operations checks fail for null/foreign return lines and a missing
+  shipment status response. These are separate from the catalog filter change.
+  An existing long-to-int test compilation error was corrected to permit testing.
+- Disposable QA PostgreSQL/Redis resources were removed. No migration, new
+  configuration, production data mutation or deployment was performed. API,
+  collection and backend documentation now specify the filtering basis.
+  See [verification details](../eyeonbay-qa/automation/artifacts/eob-p1-01-20261107.md).
 
 ### Catalog/admin atomic mutation coverage - 2026-11-06
 

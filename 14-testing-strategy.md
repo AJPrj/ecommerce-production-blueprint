@@ -24,6 +24,15 @@ Domain tests should be fast and independent.
 
 ## 3. Backend integration tests
 
+Implemented backend Gradle tests provision PostgreSQL 16 and Redis 7 in a unique
+Docker Compose project on random loopback ports, with sandbox profiles and
+automatic task-finalizer cleanup, including failures. They do not use the
+developer application's database or ambient provider credentials. The separate
+QA runner retains its own service lifecycle. One test JVM and a Spring context
+cache of one bound active datasource pools, preventing accumulated cached
+contexts from exhausting PostgreSQL's connection limit. Docker Desktop must be
+running for a plain `gradlew test` invocation.
+
 Use Testcontainers with:
 
 - PostgreSQL

@@ -109,6 +109,11 @@ review. See [Homepage merchandising](HOMEPAGE-MERCHANDISING.md).
 ### 4.3 Orders and fulfillment
 
 - Orders list: server-side paginated order number/search/status/date filters; use separate **order**, **payment**, **shipment** states in the UI.
+- The **Paid** quick filter and **Paid (all)** payment selection request
+  `PAID_OR_CAPTURED`; exact `PAID` and `CAPTURED` options remain available. The
+  current-page **Awaiting shipment** snapshot includes captured orders alongside
+  paid/COD orders in confirmed, processing or partially shipped states, excluding
+  refunded payments and completed deliveries.
 - **Shiprocket pickup today** combines with those filters and persists as `pickupToday=true` in the URL. The server selects active prepared shipments with a saved explicit pickup date equal to today in `Asia/Kolkata`, before pagination; cancelled/completed pickups and unknown dates are excluded. Shipping summaries and page CSV show the saved pickup date. Refresh re-evaluates today; Reset filters clears the selection.
 - Order detail: immutable line-price/GST/shipping/address snapshots, payment attempts, package allocations, tracking, return history, audit events and allowed actions.
 - Preserve Stage 2 command workflow: prepare package with line quantities/dimensions; dispatch exactly once; show delayed/duplicate-carrier events as historical events, not invalid state transitions.
