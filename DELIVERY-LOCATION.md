@@ -28,6 +28,21 @@ Address-list ordering is not a default-address rule. Existing addresses are not
 assigned a label or default automatically. Customers can explicitly set optional
 labels and the default shipping flag in their existing address editor.
 
+New registrations with country `India` (`IN`/`IND` also accepted) save the supplied
+delivery details into `customer_addresses` in the same transaction as the account.
+Canonical Indian state names are matched without case sensitivity and converted
+to the existing two-digit codes; codes are accepted directly. Both street lines
+are retained in the saved street field. The address is validated against the
+address-book contract before session creation; invalid Indian details roll back
+the registration. Registration does not assign a label, default shipping flag or
+delivery preference. International registration remains profile-only because the
+current address book supports Indian shipping addresses.
+
+Earlier registrations wrote only the legacy `users` profile fields. This fix does
+not automatically backfill those fields or restore addresses that a customer may
+have deleted. Affected customers can add their address through Saved addresses.
+No schema migration is required; deploy the updated backend for new registrations.
+
 Guest localStorage contains only `{postalCode}`; old free-text city values are
 discarded. sessionStorage keeps only the minimal PIN/address reference and its
 account scope for current-session precedence across refreshes. Full saved

@@ -1,6 +1,46 @@
 # E-Commerce Implementation Tracker
 
-Last updated: 2026-11-07
+Last updated: 2026-11-10
+
+### Security implementation batch 1 - 2026-11-10
+
+- Added forward-only V54 retirement of the development administrator, authorization-version
+  revocation, a staff-API reactivation guard and an operator-only one-use JDBC bootstrap
+  task. Test/QA administrators use synthetic identities. Existing installations must verify
+  a named administrator before applying V54; fresh installs bootstrap after migration.
+- Replaced credentialed wildcard CORS with validated exact origins and same-origin-only
+  defaults. Management endpoints require ADMIN. Local Compose data-service ports bind
+  to loopback; frontend Nginx verifies HTTPS upstream certificates using an explicit CA
+  bundle. Docker contexts exclude environment/private-key files.
+- See [current finding status](SECURITY-AUDIT-IMPLEMENTATION.md), the
+  [operator runbook](ADMINISTRATOR-BOOTSTRAP.md) and
+  [verification evidence](../output/security-hardening-20261110/README.md).
+  Production account/configuration changes and deployment have not been performed;
+  remaining findings stay open in the security plan.
+- Focused backend/security, packaging and formatting checks pass; 9 focused HTTP API
+  checks, 55 QA tooling tests and 4 local TLS fixtures pass. The wider API diagnostic
+  recorded 151 passes/20 failures; two staff-fixture failures were corrected and
+  verified, while 18 address/commerce/catalog assertions still require reconciliation.
+  This is not a full API release sign-off. Owned disposable services were cleaned up.
+
+### Registration address missing from Saved addresses - 2026-11-10
+
+- Registration previously wrote delivery fields only to `users`, while the address
+  book and delivery-location selector read `customer_addresses`, returning an empty
+  list for a new account. New Indian registrations now save both records atomically
+  before authentication. Canonical state names are converted to existing codes;
+  both street lines are preserved and address-book validation is enforced.
+- Registration does not invent a default shipping address, label or preference.
+  International registration remains profile-only. Existing accounts are not
+  automatically backfilled, avoiding restoration of deliberately deleted addresses;
+  affected customers can add their address in Saved addresses. See
+  [delivery location](DELIVERY-LOCATION.md). No migration or frontend change.
+- All 21 focused backend tests pass: four new registration cases plus existing
+  registration-race, customer-account and delivery-location coverage. Scoped
+  Spotless, `bootJar` and diff checks pass. The first test attempt could not start
+  because Docker Desktop was stopped; after starting it, the successful run used
+  disposable PostgreSQL/Redis services and removed them afterward. No deployment
+  or live customer-data changes. Hosted page inspection was unavailable.
 
 ### Variant description isolation correction - 2026-11-08
 
