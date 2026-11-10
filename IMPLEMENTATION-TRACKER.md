@@ -2,6 +2,98 @@
 
 Last updated: 2026-11-10
 
+### Security implementation batch 8 - Redis session startup correction - 2026-11-10
+
+- The attached boot log showed `SecurityConfig` requiring
+  `FindByIndexNameSessionRepository` while Redis session configuration registered no
+  repository of that type. Root cause: `@EnableRedisHttpSession` selected Spring
+  Session's basic, non-indexed repository.
+- Switched to `@EnableRedisIndexedHttpSession` so the repository matches
+  `SpringSessionBackedSessionRegistry`. No Redis namespace or session policy changed.
+- The app was not rebuilt and no tests were run. Verify startup with Redis and run
+  `RedisSessionConfigurationIntegrationTest`; the attached failure itself came from
+  bootRun. See [batch evidence](../output/security-hardening-batch8-20261110/README.md).
+
+### Security implementation batch 7 - 2026-11-10
+
+- Added CI secret scanning and CRITICAL/HIGH runtime-image vulnerability gates to
+  both application repositories. Frontend CI also gates on high-or-worse npm advisories.
+- Split image checking from GHCR publication: the scan job has read-only repository
+  permission, and the publish job receives package-write only after checks pass. The
+  scanned image tar is promoted as-is, avoiding a second build between scan and push.
+  Checkout credentials are not persisted in either unprivileged build job.
+- Added CycloneDX SBOM artifacts, published digest artifacts, full-SHA action pins and
+  weekly Dependabot updates for actions and application dependencies. Image artifacts
+  expire after one day; SBOM and digest artifacts after 30 and 90 days.
+- CI has not run. Scanner baseline findings, frontend audit advisories, scanned-image
+  promotion/digest matching and backend Gradle dependency locking remain to verify.
+  SEC-12 is implemented in part; no clean scan or production release claim. See
+  [batch evidence](../output/security-hardening-batch7-20261110/README.md).
+
+### Security implementation batch 6 - 2026-11-10
+
+- Redis-backed deployments now use Spring Session's `SpringSessionBackedSessionRegistry`
+  over the indexed `FindByIndexNameSessionRepository`. Filter and controller login
+  concurrency controls continue to share the same registry and two-session maximum.
+  Explicit `store-type=none` contexts retain the process-local registry; the MVC slice
+  now declares that test mode.
+- SEC-06 source implementation is in place; cross-instance enforcement, principal
+  indexing and expiry behavior still need disposable Redis integration verification.
+  No tests/build or deployment was performed. See
+  [batch evidence](../output/security-hardening-batch6-20261110/README.md).
+
+### Security implementation batch 5 - 2026-11-10
+
+- Added nosniff, same-origin framing, strict-origin-when-cross-origin referrer and
+  camera/microphone/geolocation Permissions-Policy headers to both frontend Nginx
+  configs. Repeated them in the immutable-assets location to account for Nginx
+  `add_header` inheritance rules.
+- SEC-09 remains partial: CSP report-only needs an origin inventory and policy for the
+  inline Tailwind config/CDN and payment checkout. HSTS must be set at the actual TLS
+  edge. Nginx/browser checks were not run. See
+  [batch evidence](../output/security-hardening-batch5-20261110/README.md).
+
+### Security implementation batch 4 - 2026-11-10
+
+- S3 upload confirmation now decodes uploaded bytes with the bounded image optimizer
+  after matching stored metadata, size, checksum and signature. This rejects objects
+  that pass a file-prefix check but cannot be parsed as a supported image within the
+  existing dimension/pixel caps. The adapter's focused test setup was updated; checks
+  were not run because of the local Windows/Gradle blocker.
+- SEC-11 remains partial: S3 currently serves the verified original bytes. A private
+  temporary-to-optimized publication flow and deployed bucket/origin review remain
+  open. No cloud object or live storage setting was changed. See
+  [batch evidence](../output/security-hardening-batch4-20261110/README.md).
+
+### Security implementation batch 3 - 2026-11-10
+
+- Added input maxima to login and registration DTOs to bound email, password and
+  registration profile/address data. Customer and staff enrollment now reject
+  passwords above 72 UTF-8 bytes before BCrypt encoding. Existing login verification
+  remains compatible with stored credentials; reset and password-change paths already
+  enforced the byte limit.
+- SEC-07 remains partial: shared strength policy, duplicate-registration response,
+  verified-email enrollment and identity-collision remediation remain open. Backend
+  checks are pending because the local Gradle launcher previously failed. See
+  [finding status](SECURITY-AUDIT-IMPLEMENTATION.md) and
+  [batch evidence](../output/security-hardening-batch3-20261110/README.md).
+
+### Security implementation batch 2 - 2026-11-10
+
+- Added shared durable customer/staff login budgets and separate registration
+  budgets using forward-only V55 bounded PostgreSQL counters. Account access returns
+  generic 429 with retry time when limited and 503 when counter storage is unavailable.
+  Counter commits survive authentication/registration failures; registration preserves
+  atomic saved-address creation and automatic sign-in without charging login twice.
+- Added explicit trusted-proxy address resolution for login, registration and password
+  recovery. Automatic forwarded-header rewriting is disabled; rollout must coordinate
+  real proxy CIDRs, HTTPS recognition and session cookie settings. SEC-04/SEC-08 remain
+  partial; public endpoint budgets, MFA and deployed session verification remain open.
+- See [configuration and rollout](AUTHENTICATION-THROTTLING.md),
+  [finding status](SECURITY-AUDIT-IMPLEMENTATION.md) and
+  [verification evidence](../output/security-hardening-batch2-20261110/README.md).
+  No production deployment or live customer-data change was performed.
+
 ### Security implementation batch 1 - 2026-11-10
 
 - Added forward-only V54 retirement of the development administrator, authorization-version

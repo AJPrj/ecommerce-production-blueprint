@@ -1,9 +1,123 @@
 # Security audit and implementation plan
 
 Assessment date: 2026-11-10 (Asia/Calcutta)  
-Mode: source audit plus incremental local implementation. Batch 1 is implemented; deployment gates remain open.  
+Mode: source audit plus incremental local implementation. Batches 1–7 contain source changes; runtime and deployment gates remain open.
 Skill: `ecommerce-security-hardener` and its controls/verification references.  
 Related requirements: [Security blueprint](08-security.md), [production checklist](15-production-readiness-checklist.md), [password recovery](PASSWORD-RECOVERY.md).
+
+## Implementation status — batch 12 (2026-11-10)
+
+The first build after batch 11 exposed that the new upload account counter scope
+names exceeded `authentication_request_throttles.scope VARCHAR(24)`. Those writes
+failed closed as HTTP 503, so all database-upload requests were rejected. The
+application now uses shorter upload scope names, and forward-only V58 admits them
+without altering V55–V57 history. V57's oversized names are retained in history;
+no request uses them. A fresh clean build is pending after this correction.
+
+## Implementation status — batch 11 (2026-11-10)
+
+SEC-04/SEC-11 now apply shared PostgreSQL rate budgets to administrator catalog
+image uploads. S3 presign and database upload starts share one account/IP budget;
+S3 confirmation has a separate budget because it fetches and verifies the remote
+object. The existing concurrent pending-receipt cap remains. V57 extends the bounded
+counter scopes; no raw identities are stored. Controller limits run after auth,
+authorization, CSRF and request validation but before storage signing, byte-copy,
+image decoding, or remote S3 verification. The servlet container may already have
+received/spooled multipart data before the controller, so ingress body-size and
+request-rate controls still matter.
+
+No tests, formatter, or build were run for batches 10–11. PostgreSQL integration,
+trusted proxy attribution, expected traffic thresholds, and upload retry behavior
+remain to be verified before rollout. See [throttle configuration and rollout](AUTHENTICATION-THROTTLING.md).
+
+## Implementation status — batch 10 (2026-11-10)
+
+SEC-04 now also applies durable fixed-window budgets to authenticated checkout
+quotes and order submissions, keyed by normalized account and the trusted resolved
+client address. Checks run before quote calculation or order/payment/inventory work.
+Per-account and per-address thresholds are configurable; V56 extends V55's bounded,
+hashed-slot PostgreSQL counter table without storing raw identities. There is no
+checkout-wide global hot counter. This does not cover public catalog reads, uploads,
+or webhooks, and an idempotent order retry still consumes an attempt. Business-safe
+limits must be confirmed against expected retry and traffic rates before rollout.
+
+The code and configuration were added after the last reported successful build;
+no tests, formatting check, or build have been run for this batch. Cross-instance
+PostgreSQL behavior and production proxy attribution still require verification.
+See [authentication throttling](AUTHENTICATION-THROTTLING.md).
+
+## Implementation status — batch 9 (2026-11-10)
+
+SEC-07 now applies one server-side enrollment policy to customer registration,
+password reset/change, staff creation, and the one-use administrator bootstrap:
+at least 15 Unicode characters and no more than BCrypt's 72 UTF-8-byte input
+limit. Login keeps accepting existing credentials; the new minimum is not applied
+to sign-in. Customer and recovery forms use the same visible length/byte guidance.
+The public duplicate-registration message no longer states that the email exists;
+the existing HTTP 400 contract is retained.
+
+The 15-character minimum follows current NIST SP 800-63B-4 guidance for
+single-factor passwords; the 72-byte cap remains an implementation constraint of
+the current BCrypt verifier. See [NIST SP 800-63B-4](https://pages.nist.gov/800-63-4/sp800-63b.html)
+(retrieved 2026-11-10).
+
+This only reduces direct message disclosure: success still creates an account and
+signs it in, while duplicate registration returns a generic bad-request response. Full response-level
+enumeration resistance requires a redesigned registration acceptance flow, normally
+with verified email; that workflow remains open. The operator's first `clean build`
+after this batch reached 780 tests and reported three failures: the standalone admin
+bootstrap returned an HTTP exception instead of its CLI validation exception, and two
+duplicate-registration checks observed the changed status code. Source fixes now
+preserve those contracts; a rerun is pending. No password strength change applies
+retroactively to existing passwords.
+
+## Implementation status — batch 7 (2026-11-10)
+
+SEC-12 now has workflow gates for source secret findings, frontend npm advisories and
+critical/high runtime-image vulnerabilities. The build/scan job has read-only repo
+permissions; only a successful scan permits a separate GHCR publication job with
+`packages: write`. Publication promotes the same image artifact that was scanned.
+Both workflows generate CycloneDX SBOMs and retain published digest evidence, pin
+actions to full SHAs, and receive weekly Dependabot update PRs. Existing Docker ignore
+files exclude environment and private-key material.
+
+This is partial until hosted CI confirms scanner output handling, existing findings,
+the npm advisory result, artifact transfer and digest identity. Backend Gradle
+dependency locking/verification and immutable base-image digests remain open. No scan,
+build or hosted workflow was run in this batch. See
+[batch 7 evidence](../output/security-hardening-batch7-20261110/README.md).
+
+## Implementation status — batch 6 (2026-11-10)
+
+SEC-06 uses `SpringSessionBackedSessionRegistry` whenever `spring.session.store-type=redis`, backed by Spring Session's indexed Redis repository. The two-session limit, servlet concurrent-session handling and controller-based login strategy share this registry. Contexts explicitly configured with `store-type=none` retain a process-local registry for isolated tests/single-process runs.
+
+The first Redis configuration used `@EnableRedisHttpSession`, which creates the basic non-indexed repository in Spring Session 4.1.1. That repository does not implement `FindByIndexNameSessionRepository`; the supplied boot log exposed this mismatch at context startup. `RedisSessionConfiguration` now selects `@EnableRedisIndexedHttpSession`, matching the registry's required repository type while preserving the configured namespace. Redis principal indexing, expiry, restart/logout behavior and cross-instance enforcement still need integration verification. No test/build was run for this correction. See [batch 8 evidence](../output/security-hardening-batch8-20261110/README.md).
+
+## Implementation status — batch 5 (2026-11-10)
+
+SEC-09 now adds `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin` and a Permissions-Policy disabling camera, microphone and geolocation in both production-template and development Nginx configs. The common headers are repeated in `/assets/` because that location has its own cache header and would otherwise stop inheriting server-level `add_header` values. HSTS remains an edge/TLS decision. CSP remains open: the current HTML includes inline Tailwind configuration and a third-party Tailwind CDN script, and the payment checkout origins require a measured report-only policy before rollout. No Nginx build or browser-header verification was run.
+
+See [batch 5 evidence](../output/security-hardening-batch5-20261110/README.md).
+
+## Implementation status — batch 4 (2026-11-10)
+
+SEC-11 now requires the S3 receipt verifier to pass exact-size/checksum/signature-matching content through the same bounded image decoder used for database uploads. This rejects malformed or truncated objects that merely carry a valid file prefix and enforces supported format, side length and pixel limits before confirmation. This closes the source-confirmed decode gap only partially: S3 still serves the uploaded original bytes, and secure temporary-to-optimized publication, bucket policy and public-origin behavior remain deployment/design work. Backend checks are pending; no S3 account or object was contacted by this source change.
+
+See [batch 4 evidence](../output/security-hardening-batch4-20261110/README.md).
+
+## Implementation status — batch 3 (2026-11-10)
+
+SEC-07 is partially implemented for request bounds and BCrypt input length: login email/password and registration email, password, name, phone, address, location and postal fields now have explicit maximum lengths. Customer registration and staff enrollment reject passwords over 72 UTF-8 bytes before BCrypt encoding. Existing login passwords are not subjected to the new BCrypt-byte ceiling, preserving authentication compatibility. Existing password reset/change already enforce the BCrypt byte limit.
+
+This does not yet establish a consistent password-strength policy across customer/staff flows, generic duplicate-registration behavior, verified email enrollment, or audited email-normalization collision remediation. Backend compilation and behavior checks are pending; no deployment or data migration was performed. See [verification and limits](../output/security-hardening-batch3-20261110/README.md).
+
+## Implementation status — batch 2 (2026-11-10)
+
+SEC-04 is partially implemented for authentication: customer and staff login share durable account/address/global budgets, registration has separate address/global budgets, failures cannot roll back counters, and unavailable storage rejects account access with generic 503. Forward-only V55 adds bounded PostgreSQL counters without raw email/IP storage. Generic 429 responses include a window-based retry time. Existing CSRF, session handling and registration/address transactions are preserved; registration automatic sign-in does not consume a second budget.
+
+SEC-08 is partially implemented for client-address trust: forwarding headers affect authentication/password-recovery budgets only across explicitly trusted numeric proxy CIDRs. Automatic framework/container forwarding is disabled and incompatible overrides fail startup. **This requires coordinated proxy/session rollout:** production scheme/host handling, Secure cookies and the actual ingress chain are still unverified. Empty proxy configuration deliberately groups clients by their socket peer; do not deploy guessed trust ranges.
+
+See the [configuration and rollout runbook](AUTHENTICATION-THROTTLING.md) and [executed/pending checks](../output/security-hardening-batch2-20261110/README.md). This batch has not been deployed. Public non-authentication abuse budgets and administrator MFA remain open under SEC-04; the remaining SEC-08 session/deployment controls remain open. The batch 1 table and original audit below are historical snapshots, not claims that these follow-up controls are complete.
 
 ## Implementation status — batch 1 (2026-11-10)
 
@@ -171,11 +285,11 @@ Spring Session's [cookie documentation](https://docs.spring.io/spring-session/re
 
 ### SEC-12 — Add release evidence for dependencies, images and secrets
 
-**Evidence:** Existing workflows run tests (frontend also lint) and publish containers, which are useful controls. They do not explicitly run advisory scans, redacted secret detection, SBOM/image scanning or dependency verification. Actions use version tags and base images use mutable tags. The frontend has a lockfile and uses `npm ci`; no Gradle dependency locking/verification configuration was found. Neither Docker ignore file explicitly excludes `.env*`/private key material, although no frontend `.env*` file was found during this review.
+**Evidence:** The two image workflows run tests (the frontend also lints) and publish containers. Before batch 7 they had no explicit advisory/secret/image scans, SBOMs, digests or immutable action references. The frontend has a lockfile and uses `npm ci`; Gradle dependency locking and verification are not configured. The current `.dockerignore` files exclude `.env*`, common key/certificate formats and build/dependency output.
 
-**Implementation:** Preserve compatible versions and add advisory checks against the resolved frontend and JVM graphs, scanning of the built runtime images, secret detection with redacted output, and reviewable dependency verification/locking. Record image digests and SBOMs; pin actions to reviewed immutable references with an update process. Exclude environment/credential/private-key files from build contexts, particularly the frontend's `COPY . .` and exported build cache. Do not upload private source to a new scanner service incidentally or run blanket forced upgrades.
+**Batch 7 implementation:** Both repositories now run source secret detection and block on detected findings without printing matched values; scan the built runtime image for CRITICAL/HIGH vulnerabilities; generate and retain CycloneDX SBOMs; and pass the same scanned image to a separate GHCR publication job. The publish job alone receives `packages: write`, and the published digest is saved as a workflow artifact. Frontend CI runs `npm audit --audit-level=high` against the complete lockfile dependency graph, including build dependencies. Workflow actions are pinned to full commit SHAs; weekly Dependabot updates GitHub Actions plus frontend npm/backend Gradle dependencies. The short-lived transfer artifact expires after one day; SBOM and digest evidence is retained for 30 and 90 days respectively. No source repository was uploaded to a new scanning service.
 
-**Acceptance:** Obtain a fully resolved dependency graph; match each relevant vendor advisory's affected/fixed range and feature prerequisites, then prove the patch does not break login/payment/image handling. A harmless scanner fixture must fail the intended CI gate without exposing values. Rebuild and scan the actual released images. **Result: pipeline gap confirmed; dependency exposure remains unverified.** The [Spring advisories](https://spring.io/security/) and [Vite advisories](https://github.com/vitejs/vite/security/advisories) were consulted, but this review does not assign a CVE or claim these versions are clean. Roll back incompatible application changes only to a reviewed artifact with understood remaining exposure.
+**Remaining acceptance:** Hosted workflows have not yet run. Confirm the secret scanner's JSON output shape and redaction behavior, resolve any repository baseline findings without adding unreviewed suppressions, review npm audit results, and verify the scanned tar is promoted and its recorded digest matches GHCR. Resolve backend Gradle dependencies and add dependency locking/verification; image scanning provides current runtime-image coverage but does not establish graph completeness or reproducible dependency resolution. Pin mutable Docker base images by reviewed digest in a follow-up after selecting compatible update automation. **Result: CI implementation is in place; release evidence and findings remain pending the first hosted run.** No finding-free or production-deployment claim is made. The [Trivy action](https://github.com/aquasecurity/trivy-action/releases) v0.36.0 release and [Gitleaks action v3 migration notes](https://github.com/gitleaks/gitleaks-action/releases/tag/v3.0.0) were checked on 2026-11-10; this implementation uses Trivy and does not require a Gitleaks license.
 
 ## 3. Endpoint and enforcement matrix
 
