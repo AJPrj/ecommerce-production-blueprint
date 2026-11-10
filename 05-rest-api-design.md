@@ -2,6 +2,12 @@
 
 ## 1. Base conventions
 
+Implemented product-page delivery lookup:
+[`GET /api/v1/public/shipping/serviceability`](PUBLIC-DELIVERY-AVAILABILITY.md)
+accepts product/variant IDs, quantity and a PIN code. It returns safe prepaid/COD
+serviceability and a provider delivery-date estimate without creating a shipment
+or changing checkout delivery charges.
+
 Implemented catalog description/review behavior and endpoint contracts are documented in
 [Product descriptions and customer reviews](PRODUCT-DESCRIPTIONS-AND-REVIEWS.md).
 
@@ -365,3 +371,19 @@ Use:
 3. Migrate consumers
 4. Deprecate old field
 5. Remove in a future breaking version
+
+## Complete variant content
+
+See [Shared products and complete variants](VARIANT-CONTENT.md). The Admin-only
+`GET /api/v1/catalog/admin/capabilities` returns `variantContentVersion: 1`.
+Modern create/update requests verify this capability before writing, then send
+`variantContentEnabled: true`, `variants[].priceOverride` as each explicit selling
+price, and `variants[].content` with description, primary image, ordered images,
+list price (`mrp`) and status. Details advertise the version and adoption flag.
+Unsupported/missing capabilities preserve the frontend draft without a write.
+
+For adopted products, empty variant `content.image` plus empty `content.images`
+means dynamic inheritance from the existing primary SKU's whole image set.
+Admin responses preserve these raw empty fields; public detail/options, exact
+wishlist projections and cart return effective images. Any custom image set
+disables inheritance for that variant. No request or schema fields are added.

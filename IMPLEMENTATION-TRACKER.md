@@ -2,6 +2,186 @@
 
 Last updated: 2026-11-07
 
+### Variant description isolation correction - 2026-11-08
+
+- The product description tab appended the shared product overview after the
+  selected variant description, producing extra content absent from the variant's
+  Admin field. Removed that concatenation and the equivalent Admin preview block.
+  Variant selection now shows only its own description; clearing selection restores
+  the product overview. Single-SKU automatic selection follows the same rule.
+  Updated editor guidance and variant documentation; image fallback is unchanged.
+- Regression assertions failed against the previous storefront and preview.
+  Final focused verification passes 61 tests across product detail, product
+  information, Admin catalog and variant preview. TypeScript/Vite build and diff
+  checks pass. Scoped lint has zero errors and one existing product effect warning.
+  No backend/schema/data change or deployment. The hosted URL was inaccessible
+  to the page reader; live visual acceptance remains unverified.
+
+### V52 applied-checksum compatibility correction - 2026-11-08
+
+- Startup reported V52 applied checksum `829407228` versus local `887287699`.
+  Restored V52's original contents and moved redundant owner-index cleanup into
+  forward-only V53. Existing address/preference data and migration history do
+  not require editing, repair or resetting.
+- Added a regression that applies the original V52, checks its checksum, saves
+  an address/default/preference, migrates to V53 and validates unchanged rows,
+  retained ownership/default indexes and successful Flyway validation. The
+  existing V51 upgrade case also exercises the complete migration chain.
+- Both migration cases, scoped Spotless and `bootJar` pass. Packaged V52/V53
+  match the corrected source. Verification uses disposable local test services;
+  the application database and its Flyway history are unchanged. Rerun bootRun
+  to apply V53 normally. See [verification](../output/delivery-migration-fix-20261108/README.md).
+
+### Guest/customer location dialog refinement - 2026-11-08
+
+- Guests see the location icon with “Update location”; any selected guest PIN
+  remains visible. The centered “Choose your location” dialog places a primary
+  blue sign-in action above the Indian PIN divider and inline PIN/Apply controls.
+- Customers see full saved-address cards, the current selection, the default
+  indicator and an address-management link, followed by the same PIN entry.
+  React-Bootstrap supplies dialog focus containment/restoration, Escape,
+  backdrop/close dismissal and scrolling for longer address lists. Shared theme
+  variables apply to the portal without duplicating the primary palette.
+- All 21 header/dialog tests, the TypeScript/Vite production build and scoped
+  lint pass. Browser visual acceptance is unavailable because no browser is
+  connected. Existing Sass notices remain. This is a frontend presentation
+  change; account preference, checkout and backend contracts stay in place.
+
+### Smart guest and customer delivery selection - 2026-11-08
+
+- Replaced the city/shortcut picker with guest PIN-only entry and authenticated
+  saved-address choices. Resolution uses explicit current-tab selection, account
+  preference, default shipping address and then remembered guest PIN. Explicit
+  guest choices survive login; account switches abort old requests and clear
+  private address state. There is no hardcoded location or IP/GPS inference.
+- V52 extends existing addresses with optional labels/default shipping and adds
+  one minimal address-reference/PIN preference per customer. Existing owner
+  checks are reused, with a composite ownership FK, CUSTOMER-only private
+  GET/PUT API and CSRF-protected writes. Selection never changes the default or
+  creates a saved address. Existing addresses gain no invented default/label.
+- Product delivery checks consume the selected PIN and discard stale results.
+  Checkout prefills saved details or just the manual PIN, preserves edited
+  drafts, and retains server quote/payment/idempotency behavior. Header styling
+  uses primary blue, including the two-line mobile label.
+- See [contracts, persistence and backend-first V52 rollout](DELIVERY-LOCATION.md).
+  No deployment or live provider setting change. Verification is recorded in
+  [the task report](../output/delivery-location-20261108/README.md).
+
+### Reference-inspired storefront header - 2026-11-08
+
+- Added a delivery-location disclosure beside the logo with a Kochi shortcut,
+  custom city/Indian PIN validation, keyboard/outside dismissal and optional
+  browser persistence. Saved PINs seed product delivery checks; destination
+  changes cancel stale requests/results. Coverage still requires the existing
+  item check, and checkout retains its own full shipping address.
+- Search now uses a bordered white field and primary-theme search-icon button while
+  retaining predictions and existing routes. A visible header wishlist heart
+  uses the existing shared count and customer wishlist route. Header controls
+  rearrange on tablet/mobile, with accessible names and touch targets.
+- Focused verification passes 48 tests across five files; TypeScript/Vite build
+  passes. Scoped lint has zero errors and the existing search-effect warning.
+  Browser visual acceptance remains unverified because no browser connection
+  is available. No backend, schema, provider setting or deployment change.
+
+### Main item image fallback for variants - 2026-11-08
+
+- Image-free variants now dynamically use the existing primary SKU's entire
+  image set. Custom images replace that set; clearing them restores sharing.
+  Descriptions, prices and shipping stay independent. Admin preserves empty
+  own image fields and labels the main SKU and inherited thumbnails explicitly.
+- Publication validates effective primary images. Public detail/options,
+  catalog/homepage cards, cart and exact wishlist projections share the backend
+  resolver. Media referenced by a draft/archived main SKU becomes public only
+  through an eligible published inheritor; source SKU details remain hidden.
+- Across focused runs, 98 backend tests in ten suites and 97 frontend tests in
+  five files pass. Backend Spotless/bootJar and TypeScript/Vite production build
+  pass. Scoped frontend lint has zero errors; existing CatalogAdmin/Sass notices
+  remain. An obsolete missing-image assertion was updated to check an incomplete
+  custom set, and a gallery-clear validation ordering issue was fixed and tested.
+- Backend verification used a disposable local PostgreSQL database, removed
+  afterward. No live data, provider setting or deployment changes. Deploy the
+  matching backend first; no migration beyond the existing V51 is needed.
+  Browser visual acceptance remains unverified. See [variant rules](VARIANT-CONTENT.md).
+
+### Shiprocket product-page PIN-code availability - 2026-11-07
+
+- Replaced the unconditional express-delivery/COD result with an anonymous
+  read-only backend serviceability endpoint. It validates public product/SKU,
+  PIN and quantity, derives the parcel from saved measurements and existing
+  packaging planners, and checks prepaid and COD couriers separately through
+  the existing LIVE adapter. Credentials and courier purchase rates stay private.
+- The UI shows provider dates only when usable, distinguishes unavailable routes
+  from provider failures, supports retry/loading, and discards stale results on
+  PIN/SKU/quantity/product changes. Disabled/MOCK modes do not advertise success.
+  Bounded local caching/concurrency/traffic limits protect provider calls.
+- Final verification passes 86 backend tests across five suites and 39 frontend
+  tests across two files. Backend Spotless/bootJar and TypeScript/Vite build pass;
+  scoped frontend lint has zero errors and one existing product effect warning.
+  Two initial test-fixture failures were corrected before the final passing run.
+  See [verification](../output/shiprocket-serviceability-20261107/README.md).
+- [API/configuration/estimate limits](PUBLIC-DELIVERY-AVAILABILITY.md) document the
+  additive contract. No migration, customer delivery-charge change, checkout
+  enforcement, live provider request, live setting change or deployment.
+
+### Product-page delivery and return messaging removal - 2026-11-07
+
+- Removed the delivery/return policy block and the free express delivery guarantee
+  from product pages at the owner's request. The two remaining guarantees use
+  two columns on larger screens and retain the existing mobile stack.
+- Removed the unused policy component mock and updated the frontend README.
+  All 29 existing product-page tests and the TypeScript/Vite build pass. Scoped
+  lint has zero errors and one existing effect warning. No deployment performed.
+
+### EOB-P1-11 investigation and EOB-P1-12 variant identity - 2026-11-07
+
+- EOB-P1-11 remains open: code inspection confirms registration calls the same
+  login/session-rotation/context-save path as explicit login, and both browser
+  requests include credentials. Startup waits for `/auth/me`, but any failure
+  (including the 20-second client timeout or a server error) clears client auth
+  and releases the route guard to redirect. That is a possible transient-service
+  mechanism, not evidence that it caused this report or that the cookie was lost.
+  No additional customer creation, hosted reproduction or auth/config change was
+  performed; another account requires separate owner authorization.
+- EOB-P1-12: wishlist cards show the exact saved SKU beneath the product title;
+  links, hearts and quantity/cart controls have distinct accessible names.
+  This uses the existing compact response rather than adding per-card catalog
+  reads or changing the API. Cart already shows variant name/SKU under EOB-P1-04.
+  Checkout now carries that label, and confirmation displays the saved order SKU.
+  Long identity text can wrap. Prices, quantities and exact-SKU commands retain
+  their existing behavior.
+- Focused frontend checks pass 95 tests across seven files: wishlist/cards/cart/
+  checkout (73) plus mocked auth/API contracts (22). TypeScript/Vite build and
+  diff checks pass; scoped lint has zero errors and two existing effect warnings.
+  Existing Sass/build notices remain. No backend tests, schema change, setting,
+  deployment or live browser acceptance. See the
+  [investigation and verification record](../output/eob-p1-11-12-20261107/README.md).
+
+### Empty-cart header delivery notice - 2026-11-07
+
+- Navbar delivery terms now appear only when the shared cart item count is
+  positive. Empty carts retain the brand message, including on mobile; cart
+  changes update the notice through the existing store subscription.
+- Existing header/delivery tests pass 18/18, TypeScript/Vite production build
+  and diff checks pass. Scoped lint has zero errors and the existing search
+  effect warning. No backend, delivery-rule or migration change.
+
+### Backend clean-build formatting and promotion fixture - 2026-11-07
+
+- Ran repository-wide Spotless formatting and explicitly set Java LF line
+  endings in backend `.gitattributes`, keeping Windows and Linux checks aligned.
+  The backend README documents formatting and clean-build commands.
+- The zero-value online-order promotion test assumed an automatic free-delivery
+  threshold. Under the approved optional-offer rule it instead owed INR 79.
+  Its fixture now explicitly enables free delivery at INR 1,500, checks shipping
+  is zero, and removes the temporary policy afterward. Existing rejection and
+  order/stock/promotion-usage assertions remain. Production rules are unchanged.
+- Focused verification passes all 13 promotion/invoice tests and Spotless.
+  Final full clean build passes 706 tests in 90 suites, with zero failures,
+  errors or skips; compilation, packaging, Spotless and diff checks pass.
+  Verification uses a separate output directory to avoid concurrent clean-build
+  interference. Temporary test services are removed after each completed run. See
+  [verification](../output/gradle-format-build-20261107/README.md).
+
 ### EOB-P1-09 - consistent variant discount rounding - 2026-11-07
 
 - Catalog cards and PDP now share a whole-percent discount helper that rounds
@@ -1016,6 +1196,15 @@ Status: **Implemented in the working tree; controlled account acceptance remains
 - Verification passed **38 backend integration tests in four suites**: variant/catalog projection (10), catalog administration (7), category hierarchy (9) and wishlist (12), with zero failures/errors/skips. Coverage checks effective/base price, reservations, sold-out stock, primary ordering, list/detail consistency and wishlist isolation. The initial new reservation fixture read stale JPA-managed inventory after JDBC updates; clearing the fixture persistence context fixed that test setup before the passing rerun. Scoped Spotless and `bootJar` passed. Tests used a temporary local PostgreSQL database, removed afterward, with external providers/email disabled.
 - Frontend verification passed **45 distinct tests across six files**: an initial 43-case run covered cards, featured/bestseller/special sections, wishlist hearts and the account wishlist; two additional card cases passed in the final 20-case card suite. Selection, discounts, explicit-choice guards, sold-out recovery, correct IDs/quantities, pending-command locks, failure retry, exact wishlist SKU, stock refresh, product identity reset and distinct accessible selector IDs are covered. TypeScript/Vite build and scoped lint passed with zero lint errors/warnings; existing Sass notices remain. A redundant overlapping build was stopped while the verification runners were slow; the final build completed successfully.
 - Read-only inspection confirmed the running Crusher API has two variants but no `variantOptions` field. Rebuild/restart the backend and refresh the frontend for the inline selector to appear. No new migration is required. Both READMEs, architecture decisions, API/admin notes and this tracker describe the contract. No live cart/order/payment/provider mutation was performed. Browser visual acceptance remains unverified because no browser connection is available.
+
+### Shared product families and complete variant content - 2026-11-08
+
+- Owner-approved model: shared product name/category/brand, optional common overview, GST classification, SEO and reviews; independently owned variant descriptions, primary/additional images, list/selling prices, inventory and shipping. A single sellable item uses the same model. Variant workspaces expose readiness, status, explicit copying, duplication with a fresh SKU/zero stock, per-variant preview and validation links.
+- Additive V51 copies the existing presentation to variants without changing SKU IDs, stock, reservations, price overrides or commercial snapshots. Product adoption is explicit. Backend capability checks prevent modern writes from being silently accepted by an older service; older writers cannot overwrite adopted products. Variant-only saves advance the product version after validation succeeds.
+- Draft/archived variants are excluded from public options, search, price calculations, homepage merchandising, cart additions, checkout and wishlist saves. Published variants need their own complete content, both prices and measurements. Draft addition does not interrupt an already live complete SKU. Public database media requires an eligible reference; cart/wishlist projections and selected storefront views use the exact variant's image and prices.
+- Frontend verification: 141 distinct focused cases across eleven files passed across the regression and editor/API reruns. The initial broad run encountered worker startup/time-limit failures under local load; the editor/API rerun with a longer bounded timeout passed all 36 cases; a separate delayed-upload race check also passed. Production build passed. Scoped lint has no errors; the new workspace components have no warnings. Existing editor/effect/library lint and Sass notices remain.
+- Backend verification: 196 distinct cases passed across the broad regression and focused follow-up. The 180-case run exposed one double-version increment; the final 69-case catalog/publication/archive/mutation/migration follow-up passed after the correction, including 16 additional archive/mutation cases. Scoped Spotless and bootJar passed. Earlier environmental Gradle cache/class-output problems and fixture stock/additive-schema comparisons were resolved. Tests used disposable local databases, removed afterward, and disabled external providers. Browser visual acceptance remains unverified because no browser connection is available. No deployment, application-data migration or provider/configuration change was performed.
+- Both application READMEs, API/admin notes and architecture decision 17 describe the model and backend-first V51 rollout. See [Variant content](VARIANT-CONTENT.md).
 
 ## Stage 3 — Security, reliability, deployment, and disaster recovery
 

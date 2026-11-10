@@ -1,6 +1,16 @@
 # Shiprocket implementation progress
 
-Updated: 22 October 2026. [HLD v1.4](Shiprocket-Integration-HLD.md) records the owner's clarification: **multiple items in one standard Shiprocket order, one parcel estimate and one AWB**, with automatic cardboard-based estimates when no box preset is usable. The earlier MPS interpretation is superseded.
+Updated: 7 November 2026. [HLD v1.4](Shiprocket-Integration-HLD.md) records the owner's clarification: **multiple items in one standard Shiprocket order, one parcel estimate and one AWB**, with automatic cardboard-based estimates when no box preset is usable. The earlier MPS interpretation is superseded.
+
+## Product-page delivery lookup — 7 November 2026
+
+The PIN-code checker now uses a public backend read that checks actual prepaid
+and COD Shiprocket serviceability for the selected SKU/quantity and the existing
+parcel estimate. It replaces the unconditional express/COD claim. Credentials,
+pickup details and courier costs stay server-side. Missing configuration/provider
+failures remain distinct from confirmed lack of coverage. The lookup creates no
+shipment and adds no checkout enforcement or charge change. See the
+[API, configuration and estimate limits](PUBLIC-DELIVERY-AVAILABILITY.md).
 
 ## Implemented application flow
 

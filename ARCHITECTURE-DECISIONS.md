@@ -87,3 +87,32 @@ resends use the archive. Source-linked full-unit credit notes preserve original
 documents and remain separate from payment refunds. Issuance stays disabled
 until actual seller identity, regular GST scheme, numbering and business
 acceptance are supplied. See [Invoicing](INVOICING.md).
+
+## 17. Complete variant content with shared product families
+
+The owner approved independent variant descriptions, primary/additional images,
+list/selling prices and Draft/Published/Archived states. Product name, category,
+brand, optional common information, classification, SEO and reviews stay shared.
+V51 preserves existing SKU identities and commercial state while copying the
+existing presentation into variant content. Adoption is explicit and older
+writers cannot overwrite adopted products. Public projections and purchase
+checks exclude draft/archived variants; variant-only edits advance the product
+version. See [Variant content](VARIANT-CONTENT.md) for workflow, contracts and
+backend-first rollout requirements.
+
+Owner-approved refinement (2026-11-08): a variant with no primary or gallery
+images automatically uses the primary SKU's whole image set. Custom images
+replace that set completely. Inheritance stays dynamic and is resolved by the
+backend for publication, public projections and media access; Admin retains
+empty own fields. Other variant content remains independently owned.
+
+## 18. Account-scoped delivery preferences
+
+Extend the existing saved-address model with optional labels and an explicit
+default-shipping flag; do not infer defaults from list order. A minimal PostgreSQL
+preference stores an owned address reference or manual PIN. Current-session
+explicit selection precedes account preference/default and guest browser PIN,
+including a guest PIN entered before login. Only guest PINs persist in
+localStorage; customer address data is cleared on identity changes. Checkout
+uses the selection to prefill and preserves edited drafts. The header makes no
+delivery promise or geographic inference. See [delivery location](DELIVERY-LOCATION.md).

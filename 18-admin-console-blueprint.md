@@ -332,3 +332,17 @@ Support keyboard navigation, visible focus, semantic landmarks, screen-reader st
 ---
 
 **Implementation instruction:** Build this Admin Console on top of the existing storefront project's React frontend and Spring Boot modular monolith. Before adding a route, page, endpoint or database table, inspect existing application code and migrations. Reuse implemented workflows; add only verified gaps; preserve deployed API/migration compatibility and require backend authorization, audit, state validation and tests for every administrative mutation.
+
+## Complete variant editing (2026-11-08)
+
+The supported product editor now separates Product details, Sellable item/Variants,
+SEO and Publication. Variant workspaces group Details, Images, Pricing, Inventory
+and Shipping, with independent status/readiness and preview. Shared descriptions
+are optional; published variants require their own complete content and prices.
+The shared overview is shown before variant selection; selecting or previewing
+a variant displays only its own description, without appending shared text.
+Variants without images use the main SKU's entire image set automatically, with
+an explicit inherited-state indicator and thumbnails. The main SKU is labelled
+as the shared image source. Custom images replace the shared set; clearing them
+restores sharing. Publication requires an effective primary image.
+See [Variant content](VARIANT-CONTENT.md) for compatibility and migration details.
